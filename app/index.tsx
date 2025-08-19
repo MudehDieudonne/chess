@@ -29,7 +29,7 @@ const WelcomeScreen = () => {
     // Redirect after 10 seconds
     const redirectTimer = setTimeout(() => {
       router.replace('/auth');
-    }, 10000);
+    }, 5000);
 
     return () => {
       clearInterval(typingInterval);
