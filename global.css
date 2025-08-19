@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  .text-h1 {
+    @apply font-jost-bold text-[32px] font-bold leading-[1.2] tracking-[0.2px];
+  }
+  .text-h2 {
+    @apply font-jost-bold text-[28px] font-bold leading-[1.2] tracking-[0.2px];
+  }
+  .text-h3 {
+    @apply font-jost-bold text-[24px] font-bold leading-[1.2] tracking-[0.2px];
+  }
+  .text-title1 {
+    @apply font-jost-medium text-[18px] font-medium leading-[1.2] tracking-[0.2px];
+  }
+  .text-title2 {
+    @apply font-jost text-[16px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-title3 {
+    @apply font-jost text-[14px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-label1 {
+    @apply font-jost text-[14px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-label2 {
+    @apply font-jost text-[12px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-label3 {
+    @apply font-jost text-[10px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-body1 {
+    @apply font-jost text-[16px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-body2 {
+    @apply font-jost text-[14px] leading-[1.2] tracking-[0.2px];
+  }
+  .text-body3 {
+    @apply font-jost text-[12px] leading-[1.2] tracking-[0.2px];
+  }
+}
+@layer components {
+  .button {
+    @apply bg-blue-500 text-white font-bold py-2 px-4 rounded;
+  }
+  .card {
+    @apply bg-white shadow-md rounded-lg p-4;
+  }
+  .input {
+    @apply border border-gray-300 rounded-lg p-2;
+  }
+}
+@layer utilities {
+  .flex-center {
+    @apply flex items-center justify-center; 
+    }
+    .flex-column {
+    @apply flex flex-col items-center justify-center;
+  }
+  .flex-row {
+    @apply flex flex-row items-center justify-center;
+  }
+  .text-center {
+    @apply text-center;
+  }
+  .text-left {
+    @apply text-left;
+  }
+  .text-right {
+    @apply text-right;
+  }
+  .m-4 {
+    @apply m-4;
+  }
+    .p-4 { 
+    @apply p-4;
+  }
+  .bg-gray-100 {
+    @apply bg-gray-100;
+  }
+  .bg-blue-500 {
+    @apply bg-blue-500;
+  }
+  .bg-white {
+    @apply bg-white;
+  }
+  .border {
+    @apply border;
+  }
+  .rounded {
+    @apply rounded;
+  }
+  .shadow {
+    @apply shadow;
+  }
+}
