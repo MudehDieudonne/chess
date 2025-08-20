@@ -8,8 +8,6 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <GameProvider>
-        {' '}
-        {/* Wrap with GameProvider */}
         <SafeAreaProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
