@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -19,6 +20,8 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
+      console.log('API Request:', url, options);
+
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -28,6 +31,7 @@ class ApiClient {
       });
 
       const data = await response.json();
+      console.log('API Response:', data);
 
       if (!response.ok) {
         return {
@@ -41,6 +45,7 @@ class ApiClient {
         status: response.status
       };
     } catch (error) {
+      console.error('API Error:', error);
       return {
         error: error instanceof Error ? error.message : 'Network error',
         status: 500

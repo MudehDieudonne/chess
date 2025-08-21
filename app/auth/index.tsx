@@ -43,76 +43,35 @@ const AuthScreen = () => {
     if (!email) return;
 
     setLoading(true);
-
-    // SIMULATED BACKEND: Accept any email format for testing
-    // In production, validate email format: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // For demo: Any email format is accepted
-      const isValidFormat = email.length > 3 && email.includes('@');
-
-      if (isValidFormat) {
-        setStep('verify');
-        setResendTimer(60);
-        Alert.alert('Success', 'Verification code sent to your email');
-      } else {
-        Alert.alert('Invalid Email', 'Please enter a valid email address');
-      }
-    } catch (error) {
-      Alert.alert(
-        'Error',
-        'Failed to send verification code. Please try again.'
-      );
-    } finally {
-      setLoading(false);
+    const success = await sendOTP(email);
+    if (success) {
+      setStep('verify');
+      setResendTimer(60);
     }
+    setLoading(false);
   };
 
   const handleVerifyOTP = async () => {
     if (!otp || otp.length !== 6) return;
 
     setLoading(true);
-
-    // SIMULATED BACKEND: Accept any 6-digit code for testing
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // For demo: Any 6-digit code is accepted
-      const isValidOTP = otp.length === 6 && /^\d+$/.test(otp);
-
-      if (isValidOTP) {
-        // Simulate successful authentication
-        Alert.alert('Success', 'Successfully authenticated!');
-        router.replace('/lobby');
-      } else {
-        Alert.alert('Invalid Code', 'Please enter a valid 6-digit code');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Network error. Please check your connection.');
-    } finally {
-      setLoading(false);
+    const success = await verifyOTP(email, otp);
+    if (success) {
+      router.replace('/lobby');
     }
+    setLoading(false);
   };
 
   const handleResendOTP = async () => {
     if (resendTimer > 0) return;
 
     setLoading(true);
-
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
+    const success = await sendOTP(email);
+    if (success) {
       setResendTimer(60);
-      Alert.alert('Code Resent', 'New verification code sent to your email');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to resend code. Please try again.');
-    } finally {
-      setLoading(false);
+      Alert.alert('Success', 'New verification code sent to your email');
     }
+    setLoading(false);
   };
 
   return (
@@ -132,12 +91,6 @@ const AuthScreen = () => {
               {step === 'email'
                 ? 'Enter your email to get started'
                 : 'Enter the verification code sent to your email'}
-            </Text>
-            {/* Demo instructions */}
-            <Text style={styles.demoInstructions}>
-              {step === 'email'
-                ? 'DEMO: Enter any email with @ symbol to continue'
-                : 'DEMO: Enter any 6-digit number to verify'}
             </Text>
           </View>
 
@@ -263,13 +216,14 @@ const AuthScreen = () => {
                 </View>
               )}
 
-              <View style={styles.demoHint}>
-                <Text style={styles.demoHintText}>
-                  DEMO MODE: Any email with @ symbol and any 6-digit code will
-                  work
+              <View style={styles.statusHint}>
+                <Text style={styles.statusHintText}>
+                  {step === 'email'
+                    ? 'Enter your email to receive a verification code'
+                    : 'Check your email for the 6-digit verification code'}
                 </Text>
                 <Text style={styles.backendStatus}>
-                  Backend: Simulated (Waiting for real backend integration)
+                  Backend: Connected to real authentication service
                 </Text>
               </View>
             </View>
@@ -313,17 +267,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
-    textAlign: 'center',
-    marginBottom: 8
-  },
-  demoInstructions: {
-    fontSize: 12,
-    color: '#228B22',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    backgroundColor: '#e8f5e8',
-    padding: 8,
-    borderRadius: 6
+    textAlign: 'center'
   },
   card: {
     backgroundColor: 'white',
@@ -420,7 +364,7 @@ const styles = StyleSheet.create({
   linkDisabled: {
     color: '#9ec19e'
   },
-  demoHint: {
+  statusHint: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
@@ -428,15 +372,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8
   },
-  demoHintText: {
+  statusHintText: {
     fontSize: 12,
     color: '#666',
     textAlign: 'center'
   },
   backendStatus: {
     fontSize: 10,
-    color: '#888',
-    fontStyle: 'italic'
+    color: '#228B22',
+    fontStyle: 'italic',
+    fontWeight: '500'
   }
 });
 

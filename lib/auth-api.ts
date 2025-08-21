@@ -23,17 +23,19 @@ export interface AuthResponse {
   };
 }
 
+export interface VerifyOtpResponse {
+  message: string;
+  verified: boolean;
+  tokens?: AuthResponse;
+}
+
 export const authApi = {
   sendOtp: async (dto: SendOtpDto) => {
     return apiClient.post<{ message: string }>('/auth/otp/send', dto);
   },
 
   verifyOtp: async (dto: VerifyOtpDto) => {
-    return apiClient.post<{
-      message: string;
-      verified: boolean;
-      tokens?: AuthResponse;
-    }>('/auth/otp/verify', dto);
+    return apiClient.post<VerifyOtpResponse>('/auth/otp/verify', dto);
   },
 
   refreshToken: async (dto: RefreshTokenDto) => {

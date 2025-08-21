@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  authApi,
-  AuthResponse,
-  VerifyOtpDto,
-  SendOtpDto
-} from '@/lib/auth-api';
+import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { authApi, AuthResponse, VerifyOtpResponse } from '@/lib/auth-api';
 
 interface User {
   id: string;
@@ -70,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(data.user);
     } catch (error) {
       console.error('Failed to store auth data:', error);
+      throw new Error('Failed to store authentication data');
     }
   };
 
@@ -83,15 +80,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
     } catch (error) {
       console.error('Failed to clear auth data:', error);
+      throw new Error('Failed to clear authentication data');
     }
   };
 
   const sendOTP = async (email: string): Promise<boolean> => {
     try {
       const response = await authApi.sendOtp({ email });
-      return !response.error;
+
+      if (response.error) {
+        Alert.alert('Error', response.error);
+        return false;
+      }
+
+      Alert.alert('Success', 'OTP sent to your email!');
+      return true;
     } catch (error) {
       console.error('Failed to send OTP:', error);
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
       return false;
     }
   };
@@ -100,13 +106,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await authApi.verifyOtp({ email, otp });
 
-      if (!response.error && response.data?.tokens) {
+      if (response.error) {
+        Alert.alert('Error', response.error);
+        return false;
+      }
+
+      if (!response.data?.verified) {
+        Alert.alert('Error', response.data?.message || 'Invalid OTP');
+        return false;
+      }
+
+      if (response.data.tokens) {
         await storeAuthData(response.data.tokens);
+        Alert.alert('Success', 'OTP verified successfully!');
         return true;
       }
+
+      Alert.alert('Error', 'Authentication failed');
       return false;
     } catch (error) {
       console.error('Failed to verify OTP:', error);
+      Alert.alert('Error', 'Failed to verify OTP. Please try again.');
       return false;
     }
   };
@@ -123,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error('Failed to logout:', error);
     } finally {
       await clearAuthData();
+      Alert.alert('Success', 'Logged out successfully');
     }
   };
 
@@ -133,8 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       if (refreshToken) {
         const response = await authApi.refreshToken({ refreshToken });
+
         if (!response.error && response.data) {
           await storeAuthData(response.data);
+        } else {
+          await logout();
         }
       }
     } catch (error) {

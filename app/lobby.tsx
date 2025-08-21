@@ -315,6 +315,18 @@ const Lobby = () => {
   );
 };
 
+const testGameCreation = async () => {
+  try {
+    const response = await gameApi.startGame({ vsAI: true });
+    if (!response.error) {
+      console.log('Game created:', response.data);
+      router.push(`/game/${response.data.gameId}`);
+    }
+  } catch (error) {
+    console.error('Game creation failed:', error);
+  }
+};
+
 const styles = StyleSheet.create({
   backgroundImage: {
     flex: 1
