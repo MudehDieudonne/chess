@@ -151,7 +151,7 @@ const Lobby = () => {
   return (
     <ImageBackground
       source={{
-        uri: 'https://images.unsplash.com/photo-1543092587-d8b8feaf4e4f?w=800&auto=format&fit=crop&q=80'
+        uri: 'https://images.unsplash.com/photo-1525947088131-b701cd0f6dc3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8d29vZGVuJTIwYmFja2dyb3VuZHxlbnwwfHwwfHx8MA%3D%3D'
       }}
       style={styles.backgroundImage}
       resizeMode="cover"

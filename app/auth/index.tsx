@@ -62,6 +62,7 @@ const AuthScreen = () => {
     setLoading(false);
   };
 
+  // Ensure handleVerifyOTP is defined in scope
   const handleVerifyOTP = async () => {
     if (!otp || otp.length !== 6) return;
 

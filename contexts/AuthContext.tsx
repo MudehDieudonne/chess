@@ -1,7 +1,35 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { authApi, AuthResponse, VerifyOtpResponse } from '@/lib/auth-api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authApi, AuthResponse } from '@/lib/auth-api';
+
+// Create a universal storage solution that works on web and native
+const universalStorage = {
+  setItem: async (key: string, value: string) => {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.setItem(key, value);
+    } else {
+      return SecureStore.setItemAsync(key, value);
+    }
+  },
+
+  getItem: async (key: string) => {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.getItem(key);
+    } else {
+      return SecureStore.getItemAsync(key);
+    }
+  },
+
+  deleteItem: async (key: string) => {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.removeItem(key);
+    } else {
+      return SecureStore.deleteItemAsync(key);
+    }
+  }
+};
 
 interface User {
   id: string;
@@ -39,8 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const loadStoredAuth = async () => {
     try {
       const [accessToken, userData] = await Promise.all([
-        SecureStore.getItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
-        SecureStore.getItemAsync(STORAGE_KEYS.USER)
+        universalStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
+        universalStorage.getItem(STORAGE_KEYS.USER)
       ]);
 
       if (accessToken && userData) {
@@ -56,12 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const storeAuthData = async (data: AuthResponse) => {
     try {
       await Promise.all([
-        SecureStore.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN, data.access_token),
-        SecureStore.setItemAsync(
+        universalStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.access_token),
+        universalStorage.setItem(
           STORAGE_KEYS.REFRESH_TOKEN,
           data.refresh_token
         ),
-        SecureStore.setItemAsync(STORAGE_KEYS.USER, JSON.stringify(data.user))
+        universalStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user))
       ]);
       setUser(data.user);
     } catch (error) {
@@ -73,9 +101,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const clearAuthData = async () => {
     try {
       await Promise.all([
-        SecureStore.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
-        SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
-        SecureStore.deleteItemAsync(STORAGE_KEYS.USER)
+        universalStorage.deleteItem(STORAGE_KEYS.ACCESS_TOKEN),
+        universalStorage.deleteItem(STORAGE_KEYS.REFRESH_TOKEN),
+        universalStorage.deleteItem(STORAGE_KEYS.USER)
       ]);
       setUser(null);
     } catch (error) {
@@ -101,30 +129,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     }
   };
+
   const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
     try {
       const response = await authApi.verifyOtp({ email, otp });
-      console.log('Full verify response:', response);
 
       if (response.error) {
         Alert.alert('Error', response.error);
         return false;
       }
 
-      // Check if verification was successful
       if (!response.data?.verified) {
         Alert.alert('Error', response.data?.message || 'Invalid OTP');
         return false;
       }
 
-      // FIX: The tokens are in response.data.verified, not response.data.tokens
       if (response.data.verified && response.data.verified.access_token) {
-        console.log('Storing auth data:', response.data.verified);
         await storeAuthData(response.data.verified);
-
-        // Set the user state to trigger navigation
-        setUser(response.data.verified.user);
-
         Alert.alert('Success', 'OTP verified successfully!');
         return true;
       }
@@ -140,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = async (): Promise<void> => {
     try {
-      const refreshToken = await SecureStore.getItemAsync(
+      const refreshToken = await universalStorage.getItem(
         STORAGE_KEYS.REFRESH_TOKEN
       );
       if (refreshToken) {
@@ -156,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refreshToken = async (): Promise<void> => {
     try {
-      const refreshToken = await SecureStore.getItemAsync(
+      const refreshToken = await universalStorage.getItem(
         STORAGE_KEYS.REFRESH_TOKEN
       );
       if (refreshToken) {
