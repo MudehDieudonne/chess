@@ -25,12 +25,23 @@ const AuthScreen = () => {
   const router = useRouter();
   const { user, sendOTP, verifyOTP } = useAuth();
 
-  // Redirect if already authenticated
+  // Add this useEffect to debug the navigation
   React.useEffect(() => {
+    console.log('Auth Screen - User state:', user);
+    console.log('Auth Screen - Should redirect:', !!user);
+
     if (user) {
+      console.log('Navigating to lobby...');
       router.replace('/lobby');
     }
-  }, [user]);
+  }, [user, router]);
+
+  // Redirect if already authenticated
+  // React.useEffect(() => {
+  //   if (user) {
+  //     router.replace('/lobby');
+  //   }
+  // }, [user]);
 
   React.useEffect(() => {
     if (resendTimer > 0) {
@@ -57,8 +68,12 @@ const AuthScreen = () => {
     setLoading(true);
     const success = await verifyOTP(email, otp);
     if (success) {
-      router.replace('/lobby');
+      setTimeout(() => {
+        console.log('Forcing navigation to lobby');
+        router.replace('/lobby');
+      }, 100);
     }
+
     setLoading(false);
   };
 

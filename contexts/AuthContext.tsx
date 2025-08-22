@@ -101,28 +101,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     }
   };
-
   const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
     try {
       const response = await authApi.verifyOtp({ email, otp });
+      console.log('Full verify response:', response);
 
       if (response.error) {
         Alert.alert('Error', response.error);
         return false;
       }
 
+      // Check if verification was successful
       if (!response.data?.verified) {
         Alert.alert('Error', response.data?.message || 'Invalid OTP');
         return false;
       }
 
-      if (response.data.tokens) {
-        await storeAuthData(response.data.tokens);
+      // FIX: The tokens are in response.data.verified, not response.data.tokens
+      if (response.data.verified && response.data.verified.access_token) {
+        console.log('Storing auth data:', response.data.verified);
+        await storeAuthData(response.data.verified);
+
+        // Set the user state to trigger navigation
+        setUser(response.data.verified.user);
+
         Alert.alert('Success', 'OTP verified successfully!');
         return true;
       }
 
-      Alert.alert('Error', 'Authentication failed');
+      Alert.alert('Error', 'Authentication failed - no tokens received');
       return false;
     } catch (error) {
       console.error('Failed to verify OTP:', error);
