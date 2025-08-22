@@ -11,8 +11,8 @@ import { useRouter } from 'expo-router';
 const WelcomeScreen = () => {
   const router = useRouter();
   const [displayedText, setDisplayedText] = useState('');
-  const fullText = 'Welcome ChessCitizen';
-  const typingSpeed = 250;
+  const fullText = 'Welcome to ChessMaster AI';
+  const typingSpeed = 100;
 
   useEffect(() => {
     // Typing animation
