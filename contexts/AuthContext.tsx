@@ -112,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Send OTP to email
   const sendOTP = async (email: string): Promise<boolean> => {
     try {
       const response = await authApi.sendOtp({ email });
@@ -130,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Verify OTP and log in
   const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
     try {
       const response = await authApi.verifyOtp({ email, otp });
@@ -159,6 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Logout user
   const logout = async (): Promise<void> => {
     try {
       const refreshToken = await universalStorage.getItem(
