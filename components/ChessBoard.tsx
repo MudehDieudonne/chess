@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import Chessboard from 'react-native-chessboard';
 import { useGame } from '@/contexts/GameContext';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Chessboard from 'react-native-chessboard';
 
 interface ChessBoardProps {
   className?: string;
@@ -17,7 +17,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     selectSquare
   } = useGame();
 
-  // Convert chess.js FEN to react-native-chessboard format
   const fen = game?.fen() || 'start';
 
   const onSquarePress = (square: string) => {
@@ -34,24 +33,24 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     }
   };
 
-  // Get legal moves for highlighting
   const getHighlightedSquares = () => {
     const highlights: { [square: string]: string } = {};
-
     if (selectedSquare) {
       highlights[selectedSquare] = '#FFD700';
-
       legalMoves.forEach(move => {
         highlights[move] = '#90EE90';
       });
     }
-
     return highlights;
   };
+
+  // Force re-render by using key prop based on FEN
+  const boardKey = `board-${fen}`;
 
   return (
     <View style={styles.container}>
       <Chessboard
+        key={boardKey} // Force re-render when FEN changes
         fen={fen}
         onSquarePress={onSquarePress}
         highlightedSquares={getHighlightedSquares()}
@@ -69,10 +68,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
               {game.isCheckmate()
                 ? 'Checkmate!'
                 : game.isDraw()
-                  ? 'Draw!'
-                  : game.isStalemate()
-                    ? 'Stalemate!'
-                    : 'Game Over'}
+                ? 'Draw!'
+                : game.isStalemate()
+                ? 'Stalemate!'
+                : 'Game Over'}
             </Text>
           </View>
         </View>
@@ -85,13 +84,9 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    backgroundColor: '#B58863'
+    backgroundColor: '#B58863',
+    borderRadius: 12,
+    overflow: 'hidden'
   },
   board: {
     borderRadius: 12

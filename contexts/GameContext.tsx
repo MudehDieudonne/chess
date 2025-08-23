@@ -1,11 +1,11 @@
+import { Chess } from 'chess.js';
 import React, {
   createContext,
+  ReactNode,
   useContext,
-  useState,
   useEffect,
-  ReactNode
+  useState
 } from 'react';
-import { Chess } from 'chess.js';
 import { Alert } from 'react-native';
 
 // Types
@@ -58,6 +58,7 @@ interface GameContextType {
 
   // Additional utilities
   addMove: (move: Move) => void;
+  undoMove: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -87,8 +88,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
   // Calculate legal moves for selected square
   const legalMoves = selectedSquare
-    ? game.moves({ square: selectedSquare, verbose: true }).map(move => move.to)
-    : [];
+  ? game.moves({ square: selectedSquare as any, verbose: true }).map((move: any) => move.to)
+  : [];
 
   // Hint cooldown timer
   useEffect(() => {
@@ -137,84 +138,80 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   };
 
   const makeMove = (from: Square, to: Square, promotion?: string): boolean => {
-    try {
-      const move = game.move({ from, to, promotion });
-      if (move) {
-        const newMove: Move = {
-          san: move.san,
-          from: move.from,
-          to: move.to,
-          fenAfter: game.fen(),
-          timestamp: Date.now()
-        };
+    const newGame = new Chess(game.fen()); // clone current game
+    const move = newGame.move({ from, to, promotion });
 
-        setLastMove(newMove);
-        setSelectedSquare(null);
+    if (!move) return false;
 
-        if (gameState) {
-          setGameState({
-            ...gameState,
-            fen: game.fen(),
-            moves: [...gameState.moves, newMove],
-            status: game.isGameOver() ? 'finished' : gameState.status,
-            result: game.isCheckmate()
-              ? game.turn() === 'w'
-                ? '0-1'
-                : '1-0'
-              : game.isDraw()
-                ? '1/2-1/2'
-                : undefined
-          });
-        }
+    const newMove: Move = {
+      san: move.san,
+      from: move.from,
+      to: move.to,
+      fenAfter: newGame.fen(),
+      timestamp: Date.now(),
+    };
 
-        // Simulate AI response for single player games
-        if (gameState?.opponent === 'AI' && !game.isGameOver()) {
-          setTimeout(() => {
-            const aiMoves = game.moves();
-            if (aiMoves.length > 0) {
-              const randomMove =
-                aiMoves[Math.floor(Math.random() * aiMoves.length)];
-              const aiMove = game.move(randomMove);
-              if (aiMove) {
-                const aiGameMove: Move = {
-                  san: aiMove.san,
-                  from: aiMove.from,
-                  to: aiMove.to,
-                  fenAfter: game.fen(),
-                  timestamp: Date.now()
-                };
+    setGame(newGame); // replace with new instance
+    setLastMove(newMove);
+    setSelectedSquare(null);
 
-                setLastMove(aiGameMove);
-                if (gameState) {
-                  setGameState(prev =>
-                    prev
-                      ? {
-                          ...prev,
-                          fen: game.fen(),
-                          moves: [...prev.moves, aiGameMove],
-                          status: game.isGameOver() ? 'finished' : prev.status,
-                          result: game.isCheckmate()
-                            ? game.turn() === 'w'
-                              ? '0-1'
-                              : '1-0'
-                            : game.isDraw()
-                              ? '1/2-1/2'
-                              : undefined
-                        }
-                      : null
-                  );
-                }
-              }
-            }
-          }, 1000);
-        }
-
-        return true;
-      }
-    } catch (error) {
-      console.error('Invalid move:', error);
+    if (gameState) {
+      setGameState({
+        ...gameState,
+        fen: newGame.fen(),
+        moves: [...gameState.moves, newMove],
+        status: newGame.isGameOver() ? 'finished' : gameState.status,
+        result: newGame.isCheckmate()
+          ? newGame.turn() === 'w' ? '0-1' : '1-0'
+          : newGame.isDraw()
+          ? '1/2-1/2'
+          : undefined,
+      });
     }
-    return false;
+
+    // --- AI move simulation ---
+    if (gameState?.opponent === 'AI' && !newGame.isGameOver()) {
+      setTimeout(() => {
+        const aiGame = new Chess(newGame.fen()); // clone again
+        const aiMoves = aiGame.moves();
+        if (aiMoves.length > 0) {
+          const randomMove = aiMoves[Math.floor(Math.random() * aiMoves.length)];
+          const aiMove = aiGame.move(randomMove);
+
+          if (aiMove) {
+            const aiGameMove: Move = {
+              san: aiMove.san,
+              from: aiMove.from,
+              to: aiMove.to,
+              fenAfter: aiGame.fen(),
+              timestamp: Date.now(),
+            };
+
+            setGame(aiGame); // replace instance
+            setLastMove(aiGameMove);
+            setGameState(prev =>
+              prev
+                ? {
+                    ...prev,
+                    fen: aiGame.fen(),
+                    moves: [...prev.moves, aiGameMove],
+                    status: aiGame.isGameOver() ? 'finished' : prev.status,
+                    result: aiGame.isCheckmate()
+                      ? aiGame.turn() === 'w'
+                        ? '0-1'
+                        : '1-0'
+                      : aiGame.isDraw()
+                      ? '1/2-1/2'
+                      : undefined,
+                  }
+                : null
+            );
+          }
+        }
+      }, 1000);
+    }
+
+    return true;
   };
 
   const addMove = (move: Move) => {
@@ -263,15 +260,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
   const selectSquare = (square: Square | null) => {
     setSelectedSquare(square);
-  };
-
-  const resetGame = () => {
-    const newGame = new Chess();
-    setGame(newGame);
-    setGameState(null);
-    setLastMove(null);
-    setSelectedSquare(null);
-    setAssistantHint(null);
   };
 
   const loadGame = async (gameId: string): Promise<boolean> => {
@@ -329,6 +317,84 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
+  const undoMove = () => {
+    console.log('undoMove called');
+    console.log('gameState:', gameState);
+    console.log('gameState.moves.length:', gameState?.moves.length);
+
+    if (!gameState || gameState.moves.length === 0) {
+      console.log('Cannot undo: no moves to undo');
+      return;
+    }
+
+    const newGame = new Chess(); // fresh game
+    const movesToReplay = [...gameState.moves];
+    movesToReplay.pop(); // drop last move
+
+    console.log('Moves to replay:', movesToReplay.length);
+
+    // Replay all remaining moves using the SAN notation
+    movesToReplay.forEach((move, index) => {
+      try {
+        console.log(`Replaying move ${index + 1}: ${move.san}`);
+        newGame.move(move.san);
+      } catch (error) {
+        console.error('Failed to replay move:', move.san, error);
+        // Fallback to from/to notation
+        try {
+          newGame.move({ from: move.from, to: move.to });
+        } catch (fallbackError) {
+          console.error('Fallback move also failed:', fallbackError);
+        }
+      }
+    });
+
+    console.log('New FEN after undo:', newGame.fen());
+
+    setGame(newGame);
+    setGameState({
+      ...gameState,
+      fen: newGame.fen(),
+      moves: movesToReplay,
+      status: newGame.isGameOver() ? 'finished' : 'active',
+      result: newGame.isCheckmate()
+        ? newGame.turn() === 'w' ? '0-1' : '1-0'
+        : newGame.isDraw()
+        ? '1/2-1/2'
+        : undefined,
+    });
+    setLastMove(movesToReplay[movesToReplay.length - 1] || null);
+    setSelectedSquare(null);
+    setAssistantHint(null);
+
+    console.log('Undo completed');
+  };
+
+  const resetGame = () => {
+    console.log('resetGame called');
+    
+    const newGame = new Chess();
+    const initialGameState: GameState = {
+      id: 'game_' + Date.now(),
+      fen: newGame.fen(),
+      moves: [],
+      status: 'active',
+      playerColor: 'white',
+      opponent: gameState?.opponent || 'AI',
+    };
+
+    console.log('Resetting to initial state');
+
+    setGame(newGame);
+    setGameState(initialGameState);
+    setLastMove(null);
+    setSelectedSquare(null);
+    setAssistantHint(null);
+    setHintCooldown(0);
+
+    console.log('Reset completed');
+  };
+
   const value: GameContextType = {
     game,
     gameState,
@@ -344,7 +410,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     selectSquare,
     resetGame,
     loadGame,
-    addMove
+    addMove,
+    undoMove
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
