@@ -194,10 +194,6 @@ const Lobby = () => {
         <View style={styles.content}>
           {/* Quick Actions */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Plus size={20} color="#2D5016" /> Start Playing
-            </Text>
-
             <View style={styles.actionGrid}>
               {/* Play vs AI */}
               <View style={styles.actionCard}>
