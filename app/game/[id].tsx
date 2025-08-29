@@ -43,13 +43,17 @@ const GameScreen = () => {
   const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
     null
   );
+  const [isAIThinking, setIsAIThinking] = useState(false);
 
   const boardSize = Math.min(width * 0.9, height * 0.6, 500);
 
   // Debug: track component lifecycle
   useEffect(() => {
     console.log('GameScreen mounted - Game ID:', id);
-    return () => console.log('GameScreen unmounted');
+    return () => {
+      console.log('GameScreen unmounted');
+      disconnectSocket();
+    };
   }, []);
 
   // Debug: track gameState changes
@@ -75,15 +79,16 @@ const GameScreen = () => {
     const init = async () => {
       try {
         if (!gameState) {
+          console.log('Loading game...');
           await loadGame(id as string);
         }
 
         const token = await getAccessToken();
-
         if (!token) {
           throw new Error('Access token not found');
         }
 
+        console.log('Connecting to socket...');
         const socket = connectSocket({
           gameId: id as string,
           userId: user.id,
@@ -93,7 +98,21 @@ const GameScreen = () => {
         socket.on('connect', () => {
           console.log('Socket connected successfully to game:', id);
           if (isMounted) setLoading(false);
+
+          // Emit joinGame event to backend
+          console.log('Emitting joinGame event');
+          socket.emit('joinGame', {
+            gameId: id as string,
+            userId: user.id
+          });
         });
+
+        socket.on(
+          'connected',
+          (data: { message: string; clientId: string }) => {
+            console.log('Server connection acknowledged:', data.message);
+          }
+        );
 
         socket.on('connect_error', err => {
           console.error('Socket connection error:', err);
@@ -103,11 +122,35 @@ const GameScreen = () => {
           }
         });
 
-        socket.on('aiMove', (aiMove: any) => {
-          console.log('AI move received:', aiMove);
+        socket.on('aiMoveMade', (data: { move: any; currentFen: string }) => {
+          console.log('AI move received:', data);
           if (isMounted) {
-            addMove(aiMove);
+            addMove(data.move);
+            setIsAIThinking(false);
+            console.log('AI move processed and board updated');
           }
+        });
+
+        socket.on('aiThinking', () => {
+          console.log('AI started thinking...');
+          if (isMounted) {
+            setIsAIThinking(true);
+          }
+        });
+
+        socket.on(
+          'playerJoined',
+          (data: { playerId: string; userId: string }) => {
+            console.log('Player joined game:', data);
+          }
+        );
+
+        socket.on('moveMade', (gameData: any) => {
+          console.log('Move made event received:', gameData);
+        });
+
+        socket.on('gameUpdate', (payload: any) => {
+          console.log('Game update received:', payload);
         });
       } catch (err) {
         console.error('GameScreen init error:', err);
@@ -124,7 +167,7 @@ const GameScreen = () => {
       console.log('GameScreen cleanup');
       isMounted = false;
     };
-  }, [id, user?.id]); // Removed loadGame from dependencies
+  }, [id, user?.id]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -142,14 +185,28 @@ const GameScreen = () => {
     promotion?: string;
   }) => {
     try {
+      console.log('Player making move:', move);
       const result = makeMove(move);
+
       if (result) {
+        console.log('Move validated locally:', result);
         const socket = getSocket();
-        if (socket) {
-          socket.emit('playerMove', { gameId: id, move: result });
+
+        if (socket && socket.connected) {
+          console.log('Emitting playerMove to server:', {
+            gameId: id,
+            move: result
+          });
+          socket.emit('playerMove', {
+            gameId: id,
+            move: result
+          });
+        } else {
+          console.warn('Socket not connected, cannot send move to server');
         }
       }
     } catch (e) {
+      console.error('Invalid move:', e);
       Alert.alert('Invalid Move', 'That move is not allowed.');
     }
   };
@@ -170,11 +227,13 @@ const GameScreen = () => {
 
   const getCurrentTurn = () => {
     if (!gameState) return '';
+    if (isAIThinking) return 'AI thinking...';
     return gameState.turn === 'w' ? 'White' : 'Black';
   };
 
   const getGameStatus = () => {
     if (!gameState) return 'Loading...';
+    if (isAIThinking) return 'AI thinking...';
     if (gameState.isCheckmate) return 'Checkmate';
     if (gameState.isDraw) return 'Draw';
     if (gameState.isCheck) return 'Check';

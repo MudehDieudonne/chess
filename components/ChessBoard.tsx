@@ -3,19 +3,21 @@ import { View, Text, StyleSheet } from 'react-native';
 import Chessboard from 'react-native-chessboard';
 import { useGame } from '@/contexts/GameContext';
 
+// --- STEP 1: Update the props interface to accept the onMove function ---
 interface ChessBoardProps {
+  onMove: (move: { from: string; to: string; promotion?: string }) => void;
   className?: string;
 }
 
-const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
+// --- STEP 2: Destructure `onMove` from the component's props ---
+const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   const {
     game,
-    gameState,
     selectedSquare,
     legalMoves,
-    makeMove,
     selectSquare,
     isAITurn
+    // Note: We no longer need `makeMove` from the context here
   } = useGame();
 
   const fen = game?.fen() || 'start';
@@ -27,7 +29,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
       if (selectedSquare === square) {
         selectSquare(null); // Deselect if clicked again
       } else if (legalMoves.includes(square)) {
-        makeMove(selectedSquare, square); // Move triggers socket emit
+        // --- STEP 3: Call the `onMove` prop instead of the context's makeMove ---
+        // This triggers the onPlayerMove function in GameScreen.tsx
+        onMove({ from: selectedSquare, to: square });
       } else {
         selectSquare(square); // Select new square
       }

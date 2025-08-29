@@ -28,6 +28,10 @@ interface GameState {
   playerColor: 'white' | 'black';
   opponent?: string;
   timeLeft?: { white: number; black: number };
+  turn?: 'w' | 'b';
+  isCheckmate?: boolean;
+  isDraw?: boolean;
+  isCheck?: boolean;
 }
 
 interface AssistantHint {
@@ -47,6 +51,7 @@ interface GameContextType {
   loading: boolean;
   timeLeft: { white: number; black: number };
   isAITurn: boolean;
+  isAIThinking: boolean;
   createGame: (vsAI?: boolean) => Promise<string>;
   makeMove: (from: Square, to: Square, promotion?: string) => boolean;
   requestHint: () => Promise<void>;
@@ -68,7 +73,7 @@ interface GameProviderProps {
 }
 
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
-  const { user, getAccessToken } = useAuth(); // Add getAccessToken
+  const { user, getAccessToken } = useAuth();
   const [game, setGame] = useState(new Chess());
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [lastMove, setLastMove] = useState<Move | null>(null);
@@ -80,6 +85,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ white: 600, black: 600 });
   const [isAITurn, setIsAITurn] = useState(false);
+  const [isAIThinking, setIsAIThinking] = useState(false);
 
   const legalMoves = selectedSquare
     ? game.moves({ square: selectedSquare, verbose: true }).map(m => m.to)
@@ -110,6 +116,38 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     return () => clearInterval(interval);
   }, [gameState, game]);
 
+  // AI turn detection
+  useEffect(() => {
+    if (
+      gameState?.opponent === 'AI' &&
+      gameState.status === 'active' &&
+      !game.isGameOver()
+    ) {
+      const isPlayerTurn =
+        (game.turn() === 'w' && gameState.playerColor === 'white') ||
+        (game.turn() === 'b' && gameState.playerColor === 'black');
+
+      setIsAITurn(!isPlayerTurn);
+
+      if (!isPlayerTurn && !isAIThinking) {
+        // AI's turn to move
+        setIsAIThinking(true);
+        console.log('AI thinking...');
+
+        // The actual AI move should come from socket event
+        // This timeout is just a fallback
+        const timeout = setTimeout(() => {
+          if (!game.isGameOver()) {
+            console.log('AI should make a move via socket');
+          }
+          setIsAIThinking(false);
+        }, 3000);
+
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [game, gameState, isAIThinking]);
+
   const updateGameAndState = (move: Move) => {
     const newGame = new Chess(move.fenAfter);
     setGame(newGame);
@@ -127,18 +165,21 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
             : '1-0'
           : newGame.isDraw()
             ? '1/2-1/2'
-            : undefined
+            : undefined,
+        turn: newGame.turn(),
+        isCheckmate: newGame.isCheckmate(),
+        isDraw: newGame.isDraw(),
+        isCheck: newGame.isCheck()
       };
     });
   };
 
   const connectToSocket = async (gameId: string) => {
-    // Make async
     if (!user?.id) {
       throw new Error('User ID is required for socket connection');
     }
 
-    const token = await getAccessToken(); // Get token from storage
+    const token = await getAccessToken();
 
     if (!token) {
       throw new Error('Access token is required for socket connection');
@@ -147,7 +188,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     const socket = connectSocket({
       gameId,
       userId: user.id,
-      token: token // Use token from storage
+      token: token
     });
 
     socket.off('aiMoveMade');
@@ -161,6 +202,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       };
       updateGameAndState(aiMove);
       setIsAITurn(false);
+      setIsAIThinking(false);
+    });
+
+    socket.on('aiThinking', () => {
+      console.log('AI started thinking');
+      setIsAIThinking(true);
     });
   };
 
@@ -179,12 +226,22 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         moves: [],
         status: vsAI ? 'active' : 'waiting',
         playerColor: 'white',
-        opponent: vsAI ? 'AI' : undefined
+        opponent: vsAI ? 'AI' : undefined,
+        turn: 'w',
+        isCheckmate: false,
+        isDraw: false,
+        isCheck: false
       };
       setGame(newGame);
       setGameState(newGameState);
-      resetGame();
-      if (vsAI) await connectToSocket(gameId); // Add await
+      setLastMove(null);
+      setSelectedSquare(null);
+      setAssistantHint(null);
+      setTimeLeft({ white: 600, black: 600 });
+      setIsAITurn(false);
+      setIsAIThinking(false);
+
+      if (vsAI) await connectToSocket(gameId);
       return gameId;
     } catch (error) {
       console.error('Game creation error:', error);
@@ -212,7 +269,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
     if (gameState) {
       getSocket().emit('playerMove', { gameId: gameState.id, move: newMove });
-      if (gameState.opponent === 'AI') setIsAITurn(true);
+      if (gameState.opponent === 'AI') {
+        setIsAIThinking(true);
+      }
     }
     return true;
   };
@@ -249,6 +308,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     setAssistantHint(null);
     setTimeLeft({ white: 600, black: 600 });
     setIsAITurn(false);
+    setIsAIThinking(false);
   };
 
   const loadGame = async (gameId: string): Promise<boolean> => {
@@ -258,19 +318,30 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         throw new Error('User must be logged in to load a game');
       }
 
-      const sampleFen =
-        'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
-      const sampleGame = new Chess(sampleFen);
-      setGame(sampleGame);
+      // Create a fresh new game instead of loading sample with moves
+      const newGame = new Chess();
+      setGame(newGame);
+
       setGameState({
         id: gameId,
-        fen: sampleGame.fen(),
+        fen: newGame.fen(),
         moves: [],
         status: 'active',
         playerColor: 'white',
-        opponent: 'AI'
+        opponent: 'AI',
+        turn: 'w',
+        isCheckmate: false,
+        isDraw: false,
+        isCheck: false
       });
-      await connectToSocket(gameId); // Add await
+
+      setLastMove(null);
+      setSelectedSquare(null);
+      setTimeLeft({ white: 600, black: 600 });
+      setIsAITurn(false);
+      setIsAIThinking(false);
+
+      await connectToSocket(gameId);
       return true;
     } catch (error) {
       console.error('Game load error:', error);
@@ -292,6 +363,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     loading,
     timeLeft,
     isAITurn,
+    isAIThinking,
     createGame,
     makeMove,
     requestHint,
