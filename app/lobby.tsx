@@ -67,6 +67,11 @@ const Lobby = () => {
   ]);
 
   const handlePlayVsAI = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to play vs AI');
+      return;
+    }
+
     try {
       const gameId = await createGame(true);
       router.push(`/game/${gameId}`);

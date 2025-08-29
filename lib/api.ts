@@ -1,5 +1,19 @@
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3005/api';
+
+const universalStorage = {
+  getItem: async (key: string) => {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.getItem(key);
+    } else {
+      return SecureStore.getItemAsync(key);
+    }
+  }
+};
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -20,18 +34,20 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      console.log('API Request:', url, options);
+
+      // Inject token
+      const token = await universalStorage.getItem('access_token');
 
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...options.headers
         },
         ...options
       });
 
       const data = await response.json();
-      console.log('API Response:', data);
 
       if (!response.ok) {
         return {
@@ -40,12 +56,8 @@ class ApiClient {
         };
       }
 
-      return {
-        data,
-        status: response.status
-      };
+      return { data, status: response.status };
     } catch (error) {
-      console.error('API Error:', error);
       return {
         error: error instanceof Error ? error.message : 'Network error',
         status: 500

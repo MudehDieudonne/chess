@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Chessboard from 'react-native-chessboard';
 import { useGame } from '@/contexts/GameContext';
 
@@ -14,38 +14,36 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     selectedSquare,
     legalMoves,
     makeMove,
-    selectSquare
+    selectSquare,
+    isAITurn
   } = useGame();
 
-  // Convert chess.js FEN to react-native-chessboard format
   const fen = game?.fen() || 'start';
 
   const onSquarePress = (square: string) => {
+    if (isAITurn) return; // Disable user moves while waiting for AI
+
     if (selectedSquare) {
       if (selectedSquare === square) {
-        selectSquare(null);
+        selectSquare(null); // Deselect if clicked again
       } else if (legalMoves.includes(square)) {
-        makeMove(selectedSquare, square);
+        makeMove(selectedSquare, square); // Move triggers socket emit
       } else {
-        selectSquare(square);
+        selectSquare(square); // Select new square
       }
     } else {
       selectSquare(square);
     }
   };
 
-  // Get legal moves for highlighting
   const getHighlightedSquares = () => {
     const highlights: { [square: string]: string } = {};
-
     if (selectedSquare) {
       highlights[selectedSquare] = '#FFD700';
-
       legalMoves.forEach(move => {
         highlights[move] = '#90EE90';
       });
     }
-
     return highlights;
   };
 
@@ -58,9 +56,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
         boardStyle={styles.board}
         lightSquareColor="#F0D9B5"
         darkSquareColor="#B58863"
-        showCoordinates={true}
+        showCoordinates
         showLegalMoves={false}
       />
+
+      {isAITurn && (
+        <View style={styles.aiOverlay}>
+          <Text style={styles.aiOverlayText}>AI is thinking...</Text>
+        </View>
+      )}
 
       {game?.isGameOver() && (
         <View style={styles.gameOverlay}>
@@ -85,24 +89,25 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    backgroundColor: '#B58863'
+    overflow: 'hidden'
   },
-  board: {
-    borderRadius: 12
+  board: { borderRadius: 12 },
+  aiOverlay: {
+    position: 'absolute',
+    top: '45%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    backgroundColor: 'transparent'
   },
+  aiOverlayText: { fontSize: 18, fontWeight: 'bold', color: '#FF8C00' },
   gameOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12
@@ -113,11 +118,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center'
   },
-  gameOverlayText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2D5016'
-  }
+  gameOverlayText: { fontSize: 18, fontWeight: 'bold', color: '#2D5016' }
 });
 
 export default ChessBoard;
