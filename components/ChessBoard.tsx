@@ -21,6 +21,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   } = useGame();
 
   const fen = game?.fen() || 'start';
+  
+  console.log('ChessBoard: Component rendered with FEN:', fen);
+  console.log('ChessBoard: Game object:', game);
+  console.log('ChessBoard: isAITurn:', isAITurn);
 
   const onSquarePress = (square: string) => {
     console.log('ChessBoard: Square pressed:', square);
@@ -28,21 +32,14 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
     console.log('ChessBoard: selectedSquare:', selectedSquare);
     console.log('ChessBoard: legalMoves:', legalMoves);
     
-    if (isAITurn) {
-      console.log('ChessBoard: AI turn, ignoring move');
-      return; // Disable user moves while waiting for AI
-    }
-
+    // For testing, let's try to make a simple move without checking AI turn
     if (selectedSquare) {
       if (selectedSquare === square) {
         selectSquare(null); // Deselect if clicked again
-      } else if (legalMoves.includes(square)) {
-        // --- STEP 3: Call the `onMove` prop instead of the context's makeMove ---
-        // This triggers the onPlayerMove function in GameScreen.tsx
-        console.log('ChessBoard: Making move from', selectedSquare, 'to', square);
-        onMove({ from: selectedSquare, to: square });
       } else {
-        selectSquare(square); // Select new square
+        // Try to make a move regardless of legal moves for testing
+        console.log('ChessBoard: Attempting move from', selectedSquare, 'to', square);
+        onMove({ from: selectedSquare, to: square });
       }
     } else {
       selectSquare(square);
@@ -62,6 +59,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
 
   return (
     <View style={styles.container}>
+      <Text style={{color: 'red', fontSize: 16, marginBottom: 10}}>
+        Debug: FEN = {fen}
+      </Text>
       <Chessboard
         fen={fen}
         onSquarePress={onSquarePress}
