@@ -101,10 +101,7 @@ const GameScreen = () => {
 
           // Emit joinGame event to backend
           console.log('Emitting joinGame event');
-          socket.emit('joinGame', {
-            gameId: id as string,
-            userId: user.id
-          });
+                  socket.emit('joinGame', id as string);
         });
 
         socket.on(
@@ -125,7 +122,15 @@ const GameScreen = () => {
         socket.on('aiMoveMade', (data: { move: any; currentFen: string }) => {
           console.log('AI move received:', data);
           if (isMounted) {
-            addMove(data.move);
+            // Update the game state with the AI move
+            const aiMove = {
+              from: data.move.from,
+              to: data.move.to,
+              san: data.move.san,
+              fenAfter: data.currentFen,
+              timestamp: Date.now()
+            };
+            addMove(aiMove);
             setIsAIThinking(false);
             console.log('AI move processed and board updated');
           }
@@ -186,24 +191,26 @@ const GameScreen = () => {
   }) => {
     try {
       console.log('Player making move:', move);
-      const result = makeMove(move);
+      const result = makeMove(move.from, move.to, move.promotion);
 
       if (result) {
         console.log('Move validated locally:', result);
         const socket = getSocket();
 
         if (socket && socket.connected) {
-          console.log('Emitting playerMove to server:', {
+          console.log('Emitting makeMove to server:', {
             gameId: id,
             move: result
           });
-          socket.emit('playerMove', {
+          socket.emit('makeMove', {
             gameId: id,
-            move: result
+            dto: result
           });
         } else {
           console.warn('Socket not connected, cannot send move to server');
         }
+      } else {
+        Alert.alert('Invalid Move', 'That move is not allowed.');
       }
     } catch (e) {
       console.error('Invalid move:', e);

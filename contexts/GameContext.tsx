@@ -53,7 +53,8 @@ interface GameContextType {
   isAITurn: boolean;
   isAIThinking: boolean;
   createGame: (vsAI?: boolean) => Promise<string>;
-  makeMove: (from: Square, to: Square, promotion?: string) => boolean;
+  makeMove: (from: Square, to: Square, promotion?: string) => { from: string; to: string; promotion?: string } | false;
+  addMove: (move: Move) => void;
   requestHint: () => Promise<void>;
   selectSquare: (square: Square | null) => void;
   resetGame: () => void;
@@ -174,6 +175,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     });
   };
 
+  const addMove = (move: Move) => {
+    updateGameAndState(move);
+  };
+
   const connectToSocket = async (gameId: string) => {
     if (!user?.id) {
       throw new Error('User ID is required for socket connection');
@@ -218,8 +223,28 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         throw new Error('User must be logged in to create a game');
       }
 
+      // Create game via backend API
+      const response = await fetch('http://localhost:3005/api/games/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getAccessToken()}`
+        },
+        body: JSON.stringify({
+          vsAI: vsAI,
+          userColor: 'white',
+          aiDifficulty: 'medium'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create game on server');
+      }
+
+      const gameData = await response.json();
+      const gameId = gameData.data._id || gameData.data.id;
+
       const newGame = new Chess();
-      const gameId = 'game_' + Date.now();
       const newGameState: GameState = {
         id: gameId,
         fen: newGame.fen(),
@@ -252,7 +277,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
-  const makeMove = (from: Square, to: Square, promotion?: string): boolean => {
+  const makeMove = (from: Square, to: Square, promotion?: string): { from: string; to: string; promotion?: string } | false => {
     const tempGame = new Chess(game.fen());
     const moveResult = tempGame.move({ from, to, promotion });
     if (!moveResult) return false;
@@ -268,12 +293,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     updateGameAndState(newMove);
 
     if (gameState) {
-      getSocket().emit('playerMove', { gameId: gameState.id, move: newMove });
       if (gameState.opponent === 'AI') {
         setIsAIThinking(true);
       }
     }
-    return true;
+    
+    // Return the move data for the socket emission
+    return { from, to, promotion };
   };
 
   const requestHint = async (): Promise<void> => {
@@ -366,6 +392,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     isAIThinking,
     createGame,
     makeMove,
+    addMove,
     requestHint,
     selectSquare,
     resetGame,
