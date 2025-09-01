@@ -22,15 +22,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
 
   const fen = game?.fen() || 'start';
   
-  console.log('ChessBoard: Component rendered with FEN:', fen);
-  console.log('ChessBoard: Game object:', game);
-  console.log('ChessBoard: isAITurn:', isAITurn);
-
   const onChessMove = (info: any) => {
-    console.log('ChessBoard: Move made:', info);
-    console.log('ChessBoard: Move from:', info.move.from);
-    console.log('ChessBoard: Move to:', info.move.to);
-    
     // Call the onMove prop with the move data
     onMove({ 
       from: info.move.from, 
@@ -52,15 +44,19 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={{color: 'red', fontSize: 16, marginBottom: 10}}>
-        Debug: FEN = {fen}
-      </Text>
       <Chessboard
         fen={fen}
         onMove={onChessMove}
         gestureEnabled={true}
         withLetters={true}
         withNumbers={true}
+        boardSize={350}
+        colors={{
+          white: '#F0D9B5',
+          black: '#B58863',
+          lastMoveHighlight: '#FFFF00',
+          checkmateHighlight: '#FF0000'
+        }}
       />
 
       {isAITurn && (

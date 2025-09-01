@@ -292,18 +292,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     to: Square,
     promotion?: string
   ): { from: string; to: string; promotion?: string } | false => {
-    console.log('GameContext: makeMove called with:', { from, to, promotion });
-    console.log('GameContext: current game FEN:', game.fen());
-    console.log('GameContext: gameState:', gameState);
-    
     const tempGame = new Chess(game.fen());
     const moveResult = tempGame.move({ from, to, promotion });
     if (!moveResult) {
-      console.log('GameContext: Invalid move');
       return false;
     }
-    
-    console.log('GameContext: Move result:', moveResult);
 
     const newMove: Move = {
       san: moveResult.san,
