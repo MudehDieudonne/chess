@@ -157,6 +157,10 @@ const GameScreen = () => {
         socket.on('gameUpdate', (payload: any) => {
           console.log('Game update received:', payload);
         });
+
+        socket.on('gameStarted', (gameData: any) => {
+          console.log('Game started event received:', gameData);
+        });
       } catch (err) {
         console.error('GameScreen init error:', err);
         if (isMounted) {

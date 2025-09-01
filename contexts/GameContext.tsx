@@ -242,7 +242,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       }
 
       const gameData = await response.json();
-      const gameId = gameData.data._id || gameData.data.id;
+      console.log('Game creation response:', gameData);
+      const gameId = gameData.data?._id || gameData.data?.id || gameData._id || gameData.id;
+      
+      if (!gameId) {
+        throw new Error('No game ID returned from server');
+      }
 
       const newGame = new Chess();
       const newGameState: GameState = {
