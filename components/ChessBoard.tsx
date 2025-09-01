@@ -26,24 +26,17 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   console.log('ChessBoard: Game object:', game);
   console.log('ChessBoard: isAITurn:', isAITurn);
 
-  const onSquarePress = (square: string) => {
-    console.log('ChessBoard: Square pressed:', square);
-    console.log('ChessBoard: isAITurn:', isAITurn);
-    console.log('ChessBoard: selectedSquare:', selectedSquare);
-    console.log('ChessBoard: legalMoves:', legalMoves);
+  const onChessMove = (info: any) => {
+    console.log('ChessBoard: Move made:', info);
+    console.log('ChessBoard: Move from:', info.move.from);
+    console.log('ChessBoard: Move to:', info.move.to);
     
-    // For testing, let's try to make a simple move without checking AI turn
-    if (selectedSquare) {
-      if (selectedSquare === square) {
-        selectSquare(null); // Deselect if clicked again
-      } else {
-        // Try to make a move regardless of legal moves for testing
-        console.log('ChessBoard: Attempting move from', selectedSquare, 'to', square);
-        onMove({ from: selectedSquare, to: square });
-      }
-    } else {
-      selectSquare(square);
-    }
+    // Call the onMove prop with the move data
+    onMove({ 
+      from: info.move.from, 
+      to: info.move.to, 
+      promotion: info.move.promotion 
+    });
   };
 
   const getHighlightedSquares = () => {
@@ -64,13 +57,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
       </Text>
       <Chessboard
         fen={fen}
-        onSquarePress={onSquarePress}
-        highlightedSquares={getHighlightedSquares()}
-        boardStyle={styles.board}
-        lightSquareColor="#F0D9B5"
-        darkSquareColor="#B58863"
-        showCoordinates
-        showLegalMoves={false}
+        onMove={onChessMove}
+        gestureEnabled={true}
+        withLetters={true}
+        withNumbers={true}
       />
 
       {isAITurn && (
