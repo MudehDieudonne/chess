@@ -180,7 +180,23 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   };
 
   const addMove = (move: Move) => {
-    updateGameAndState(move);
+    // For AI moves, we need to apply the move to the current game state
+    if (move.fenAfter) {
+      // If we have the FEN after the move, use it directly
+      updateGameAndState(move);
+    } else {
+      // If we don't have the FEN, apply the move to the current game
+      const tempGame = new Chess(game.fen());
+      const moveResult = tempGame.move({ from: move.from, to: move.to, promotion: move.promotion });
+      if (moveResult) {
+        const updatedMove: Move = {
+          ...move,
+          fenAfter: tempGame.fen(),
+          san: moveResult.san
+        };
+        updateGameAndState(updatedMove);
+      }
+    }
   };
 
   const connectToSocket = async (gameId: string) => {

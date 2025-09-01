@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ChessBoard from '@/components/ChessBoard';
 import AssistantPanel from '@/components/AssistantPanel';
 import { connectSocket, disconnectSocket, getSocket } from '@/services/socket';
+import { Move } from '@/types';
 
 const SERVER_URL = __DEV__
   ? 'http://localhost:3005'
@@ -123,7 +124,7 @@ const GameScreen = () => {
           console.log('AI move received:', data);
           if (isMounted) {
             // Update the game state with the AI move
-            const aiMove = {
+            const aiMove: Move = {
               from: data.move.from,
               to: data.move.to,
               san: data.move.san,
