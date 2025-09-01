@@ -53,7 +53,11 @@ interface GameContextType {
   isAITurn: boolean;
   isAIThinking: boolean;
   createGame: (vsAI?: boolean) => Promise<string>;
-  makeMove: (from: Square, to: Square, promotion?: string) => { from: string; to: string; promotion?: string } | false;
+  makeMove: (
+    from: Square,
+    to: Square,
+    promotion?: string
+  ) => { from: string; to: string; promotion?: string } | false;
   addMove: (move: Move) => void;
   requestHint: () => Promise<void>;
   selectSquare: (square: Square | null) => void;
@@ -224,11 +228,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       }
 
       // Create game via backend API
-      const response = await fetch('http://localhost:3005/api/games/start', {
+      const response = await fetch('http://localhost:3000/api/games/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getAccessToken()}`
+          Authorization: `Bearer ${await getAccessToken()}`
         },
         body: JSON.stringify({
           vsAI: vsAI,
@@ -243,8 +247,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
       const gameData = await response.json();
       console.log('Game creation response:', gameData);
-      const gameId = gameData.data?._id || gameData.data?.id || gameData._id || gameData.id;
-      
+      const gameId =
+        gameData.data?._id || gameData.data?.id || gameData._id || gameData.id;
+
       if (!gameId) {
         throw new Error('No game ID returned from server');
       }
@@ -282,10 +287,23 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
-  const makeMove = (from: Square, to: Square, promotion?: string): { from: string; to: string; promotion?: string } | false => {
+  const makeMove = (
+    from: Square,
+    to: Square,
+    promotion?: string
+  ): { from: string; to: string; promotion?: string } | false => {
+    console.log('GameContext: makeMove called with:', { from, to, promotion });
+    console.log('GameContext: current game FEN:', game.fen());
+    console.log('GameContext: gameState:', gameState);
+    
     const tempGame = new Chess(game.fen());
     const moveResult = tempGame.move({ from, to, promotion });
-    if (!moveResult) return false;
+    if (!moveResult) {
+      console.log('GameContext: Invalid move');
+      return false;
+    }
+    
+    console.log('GameContext: Move result:', moveResult);
 
     const newMove: Move = {
       san: moveResult.san,
@@ -302,7 +320,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         setIsAIThinking(true);
       }
     }
-    
+
     // Return the move data for the socket emission
     return { from, to, promotion };
   };

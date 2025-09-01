@@ -23,7 +23,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   const fen = game?.fen() || 'start';
 
   const onSquarePress = (square: string) => {
-    if (isAITurn) return; // Disable user moves while waiting for AI
+    console.log('ChessBoard: Square pressed:', square);
+    console.log('ChessBoard: isAITurn:', isAITurn);
+    console.log('ChessBoard: selectedSquare:', selectedSquare);
+    console.log('ChessBoard: legalMoves:', legalMoves);
+    
+    if (isAITurn) {
+      console.log('ChessBoard: AI turn, ignoring move');
+      return; // Disable user moves while waiting for AI
+    }
 
     if (selectedSquare) {
       if (selectedSquare === square) {
@@ -31,6 +39,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
       } else if (legalMoves.includes(square)) {
         // --- STEP 3: Call the `onMove` prop instead of the context's makeMove ---
         // This triggers the onPlayerMove function in GameScreen.tsx
+        console.log('ChessBoard: Making move from', selectedSquare, 'to', square);
         onMove({ from: selectedSquare, to: square });
       } else {
         selectSquare(square); // Select new square

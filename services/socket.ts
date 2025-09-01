@@ -26,7 +26,7 @@ export const connectSocket = ({ gameId, userId, token }: ConnectOptions) => {
     throw new Error('Access token is required for socket connection');
   }
 
-  socket = io('http://localhost:3005', {
+  socket = io('http://localhost:3000', {
     auth: { token, userId, gameId },
     autoConnect: true,
     reconnection: true,
