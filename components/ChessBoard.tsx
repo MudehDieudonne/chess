@@ -1,7 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import Chessboard from 'react-native-chessboard';
 
 interface ChessBoardProps {
