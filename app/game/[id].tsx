@@ -1,45 +1,112 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Dimensions,
-  Modal,
-  Platform,
-  useWindowDimensions
-} from 'react-native';
+import ChessBoard from '@/components/ChessBoard';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGame } from '@/contexts/GameContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
-  Flag,
-  Handshake,
-  User,
   Bot,
   Crown,
+  Flag,
+  Handshake,
   History,
   Lightbulb,
-  X
+  RefreshCw,
+  Undo2,
+  User
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
-import { useAuth } from '@/contexts/AuthContext';
-import ChessBoard from '@/components/ChessBoard';
-import AssistantPanel from '@/components/AssistantPanel';
+import React, { useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
+} from 'react-native';
+
+// --- Tooltip avec animation ---
+const TooltipIcon = ({
+  label,
+  onPress,
+  children
+}: {
+  label: string;
+  onPress: () => void;
+  children: React.ReactNode;
+}) => {
+  const [visible, setVisible] = useState(false);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(5)).current;
+
+  const showTooltip = () => {
+    setVisible(true);
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+
+  const hideTooltip = () => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true
+      }),
+      Animated.timing(translateY, {
+        toValue: 5,
+        duration: 150,
+        useNativeDriver: true
+      })
+    ]).start(() => setVisible(false));
+  };
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      {visible && (
+        <Animated.View
+          style={[
+            styles.tooltip,
+            { opacity, transform: [{ translateY }] }
+          ]}
+        >
+          <Text style={styles.tooltipText}>{label}</Text>
+        </Animated.View>
+      )}
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={showTooltip}
+        onPressOut={hideTooltip}
+        onMouseEnter={showTooltip}
+        onMouseLeave={hideTooltip}
+      >
+        {children}
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const GameScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const { gameState, loadGame, game, resetGame } = useGame();
+  const { gameState, loadGame, game, resetGame, undoMove } = useGame();
   const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
     null
   );
   const [loading, setLoading] = useState(true);
 
   const { width, height } = useWindowDimensions();
-  const isMobile = width < 768;
   const boardSize = Math.min(width * 0.9, height * 0.6, 500);
 
   React.useEffect(() => {
@@ -49,7 +116,6 @@ const GameScreen = () => {
       }
       setLoading(false);
     };
-
     initializeGame();
   }, [id, gameState, loadGame]);
 
@@ -95,7 +161,7 @@ const GameScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header - Minimal */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -138,9 +204,8 @@ const GameScreen = () => {
         </View>
       </View>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <View style={styles.mainContent}>
-        {/* Chess Board - Centered with proper sizing */}
         <View
           style={[
             styles.boardContainer,
@@ -149,93 +214,39 @@ const GameScreen = () => {
         >
           <ChessBoard />
         </View>
-
-        {/* Game Controls */}
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={[styles.controlButton, styles.resignButton]}
-            onPress={handleResign}
-          >
-            <Flag size={20} color="#fff" />
-            <Text style={styles.controlText}>Resign</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.controlButton, styles.drawButton]}
-            onPress={handleOfferDraw}
-          >
-            <Handshake size={20} color="#2D5016" />
-            <Text style={styles.drawText}>Draw</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* Modal for History and Assistant */}
-      <Modal
-        visible={activeTab !== null}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setActiveTab(null)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { maxHeight: height * 0.7 }]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {activeTab === 'history' ? 'Move History' : 'AI Assistant'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setActiveTab(null)}
-                style={styles.closeButton}
-              >
-                <X size={24} color="#2D5016" />
-              </TouchableOpacity>
-            </View>
+      {/* Bottom Bar avec Tooltips animés */}
+      <View style={styles.bottomBar}>
+        <TooltipIcon label="Resign" onPress={handleResign}>
+          <Flag size={28} color="#dc2626" />
+        </TooltipIcon>
 
-            {/* Modal Body */}
-            <View style={styles.modalBody}>
-              {activeTab === 'history' && (
-                <ScrollView style={styles.historyList}>
-                  {gameState.moves.length === 0 ? (
-                    <Text style={styles.noMovesText}>No moves yet</Text>
-                  ) : (
-                    gameState.moves.map((move, index) => (
-                      <View key={index} style={styles.moveItem}>
-                        <Text style={styles.moveNumber}>
-                          {Math.floor(index / 2) + 1}.
-                        </Text>
-                        <Text style={styles.moveNotation}>{move.san}</Text>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              )}
+        <TooltipIcon label="Draw" onPress={handleOfferDraw}>
+          <Handshake size={28} color="#228B22" />
+        </TooltipIcon>
 
-              {activeTab === 'assistant' && <AssistantPanel />}
-            </View>
-          </View>
-        </View>
-      </Modal>
+        <TooltipIcon label="Reset" onPress={() => resetGame()}>
+          <RefreshCw size={28} color="#2D5016" />
+        </TooltipIcon>
+
+        <TooltipIcon label="Undo" onPress={undoMove}>
+          <Undo2 size={28} color="#2D5016" />
+        </TooltipIcon>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa'
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8f9fa'
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666'
-  },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,46 +259,18 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e8e8e8',
     minHeight: 60
   },
-  backButton: {
-    padding: 8
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 12
-  },
-  opponentInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D5016'
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12
-  },
-  headerIcon: {
-    padding: 8
-  },
-  mainContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16
-  },
+  backButton: { padding: 8 },
+  headerCenter: { flex: 1, alignItems: 'center', marginHorizontal: 12 },
+  opponentInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerTitle: { fontSize: 16, fontWeight: '600', color: '#2D5016' },
+  headerSubtitle: { fontSize: 12, color: '#666', marginTop: 2 },
+  headerActions: { flexDirection: 'row', gap: 12 },
+  headerIcon: { padding: 8 },
+  mainContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   boardContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 80,
     backgroundColor: 'white',
     borderRadius: 12,
     shadowColor: '#000',
@@ -296,94 +279,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8
   },
-  controls: {
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    padding: 16
-  },
-  controlButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
-    justifyContent: 'center'
-  },
-  resignButton: {
-    backgroundColor: '#dc2626'
-  },
-  drawButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#228B22'
-  },
-  controlText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14
-  },
-  drawText: {
-    color: '#228B22',
-    fontWeight: '600',
-    fontSize: 14
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
-  },
-  modalContent: {
+    justifyContent: 'space-around',
+    paddingVertical: 14,
     backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20
+    borderTopWidth: 1,
+    borderTopColor: '#e8e8e8'
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8'
+  tooltip: {
+    position: 'absolute',
+    bottom: 30
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2D5016'
-  },
-  closeButton: {
-    padding: 4
-  },
-  modalBody: {
-    padding: 20
-  },
-  historyList: {
-    maxHeight: 300
-  },
-  moveItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
-  },
-  moveNumber: {
-    width: 30,
-    color: '#666',
-    fontSize: 14
-  },
-  moveNotation: {
-    fontFamily: 'monospace',
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2D5016'
-  },
-  noMovesText: {
-    textAlign: 'center',
-    color: '#666',
-    padding: 20
+  tooltipText: {
+    color: '#2D5016',
+    fontSize: 13,
+    fontWeight: '500'
   }
 });
 

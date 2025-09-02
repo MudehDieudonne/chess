@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import Chessboard from 'react-native-chessboard';
 import { useGame } from '@/contexts/GameContext';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Chessboard from 'react-native-chessboard';
 
 interface ChessBoardProps {
   className?: string;
