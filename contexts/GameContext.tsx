@@ -1,14 +1,14 @@
+import { connectSocket } from '@/services/socket';
+import { Chess } from 'chess.js';
 import React, {
   createContext,
+  ReactNode,
   useContext,
-  useState,
   useEffect,
-  ReactNode
+  useState
 } from 'react';
-import { Chess } from 'chess.js';
 import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
-import { connectSocket } from '@/services/socket';
 
 export type Square = string;
 export type Move = {
@@ -154,25 +154,60 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, [game, gameState, isAIThinking]);
 
   const updateGameAndState = (move: Move) => {
-    const newGame = new Chess(move.fenAfter);
-    setGame(newGame);
-    setLastMove(move);
-    setGameState(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        fen: move.fenAfter,
-        moves: [...prev.moves, move]
-      };
+    console.log('[CTX] updateGameAndState:', {
+      from: move.from,
+      to: move.to,
+      san: move.san,
+      fenAfter: move.fenAfter
     });
+    try {
+      const newGame = new Chess(move.fenAfter);
+      setGame(newGame);
+      setLastMove(move);
+      setGameState(prev => {
+        if (!prev) return null;
+        const next = {
+          ...prev,
+          fen: move.fenAfter,
+          moves: [...prev.moves, move]
+        };
+        console.log('[CTX] gameState updated (move):', next.fen);
+        return next;
+      });
+    } catch (e) {
+      console.log('[CTX] updateGameAndState invalid FEN:', move.fenAfter, e);
+    }
+  };
+
+  const applyServerFen = (fen: string, source: string) => {
+    console.log('[CTX] applyServerFen from', source, 'fen:', fen);
+    try {
+      setGame(new Chess(fen));
+      setGameState(prev =>
+        prev
+          ? { ...prev, fen }
+          : {
+              id: 'unknown',
+              fen,
+              moves: [],
+              status: 'active',
+              playerColor: 'white'
+            }
+      );
+    } catch (e) {
+      console.log('[CTX] applyServerFen invalid FEN:', fen, e);
+    }
   };
 
   const addMove = (move: Move) => {
     // For AI moves, we need to apply the move to the current game state
     if (move.fenAfter) {
-      // If we have the FEN after the move, use it directly
+      console.log('[CTX] addMove with fenAfter, applying');
       updateGameAndState(move);
     } else {
+      console.log(
+        '[CTX] addMove without fenAfter, attempting local derive (deprecated path)'
+      );
       // If we don't have the FEN, apply the move to the current game
       const tempGame = new Chess(game.fen());
       const moveResult = tempGame.move({
@@ -187,6 +222,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
           san: moveResult.san
         };
         updateGameAndState(updatedMove);
+      } else {
+        console.log('[CTX] addMove local derive failed for', move);
       }
     }
   };
@@ -209,15 +246,17 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     });
 
     socket.off('aiMoveMade');
-    socket.on('aiMoveMade', (data: { move: Move; currentFen: string }) => {
+    socket.on('aiMoveMade', (data: { move: Move; currentFen?: string }) => {
       const aiMove: Move = {
         from: data.move.from,
         to: data.move.to,
         san: data.move.san,
-        fenAfter: data.currentFen,
+        fenAfter: data.currentFen ?? game.fen(),
         timestamp: Date.now()
       };
-      updateGameAndState(aiMove);
+      if (data.currentFen) {
+        updateGameAndState(aiMove);
+      }
       setIsAITurn(false);
       setIsAIThinking(false);
     });
@@ -226,16 +265,27 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     socket.off('gameUpdate');
     socket.on(
       'gameUpdate',
-      (payload: { gameId: string; fen: string; moves: any[]; status: string }) => {
-        // Trust backend FEN/state
-        setGame(new Chess(payload.fen));
+      (payload: {
+        gameId: string;
+        fen: string;
+        moves: any[];
+        status: string;
+      }) => {
+        console.log('CTX gameUpdate ->', payload);
+        try {
+          setGame(new Chess(payload.fen));
+        } catch (e) {
+          console.log('CTX gameUpdate invalid FEN:', payload.fen, e);
+        }
+        // Any gameUpdate means AI finished thinking
+        setIsAIThinking(false);
         setGameState(prev =>
           prev
             ? {
                 ...prev,
                 id: String(payload.gameId),
                 fen: payload.fen,
-                moves: prev.moves, // keep existing rendered moves; detailed history can be fetched if needed
+                moves: prev.moves,
                 status: payload.status === 'ongoing' ? 'active' : prev.status
               }
             : {
@@ -378,15 +428,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
       // Initialize minimal state; backend will drive updates
       setGame(new Chess());
-      setGameState(prev =>
-        prev ?? {
-          id: gameId,
-          fen: new Chess().fen(),
-          moves: [],
-          status: 'active',
-          playerColor: 'white',
-          opponent: 'AI'
-        }
+      setGameState(
+        prev =>
+          prev ?? {
+            id: gameId,
+            fen: new Chess().fen(),
+            moves: [],
+            status: 'active',
+            playerColor: 'white',
+            opponent: 'AI'
+          }
       );
 
       setLastMove(null);

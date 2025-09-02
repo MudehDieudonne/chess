@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Chessboard from 'react-native-chessboard';
 import { useGame } from '@/contexts/GameContext';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Chessboard from 'react-native-chessboard';
 
 // --- STEP 1: Update the props interface to accept the onMove function ---
 interface ChessBoardProps {
@@ -13,14 +13,15 @@ interface ChessBoardProps {
 const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   const {
     game,
+    gameState,
     selectedSquare,
     legalMoves,
     selectSquare,
-    isAITurn
-    // Note: We no longer need `makeMove` from the context here
+    isAIThinking
   } = useGame();
 
-  const fen = game?.fen() || 'start';
+  // Prefer server-driven fen from gameState to avoid desync
+  const fen = gameState?.fen || game?.fen() || 'start';
 
   const onChessMove = (info: any) => {
     // Call the onMove prop with the move data
@@ -45,12 +46,14 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   return (
     <View style={styles.container}>
       <Chessboard
+        key={fen}
         fen={fen}
         onMove={onChessMove}
         gestureEnabled={true}
         withLetters={true}
         withNumbers={true}
         boardSize={350}
+        durations={{ move: 180 }}
         colors={{
           white: '#F0D9B5',
           black: '#B58863',
@@ -59,7 +62,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
         }}
       />
 
-      {isAITurn && (
+      {isAIThinking && (
         <View style={styles.aiOverlay}>
           <Text style={styles.aiOverlayText}>AI is thinking...</Text>
         </View>

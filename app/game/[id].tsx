@@ -1,32 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Modal,
-  Platform,
-  useWindowDimensions,
-  Alert
-} from 'react-native';
+import AssistantPanel from '@/components/AssistantPanel';
+import ChessBoard from '@/components/ChessBoard';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGame } from '@/contexts/GameContext';
+import { connectSocket, disconnectSocket, getSocket } from '@/services/socket';
+import { Move } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
-  Flag,
-  Handshake,
   Bot,
   Crown,
+  Flag,
+  Handshake,
   History,
   Lightbulb,
   X
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
-import { useAuth } from '@/contexts/AuthContext';
-import ChessBoard from '@/components/ChessBoard';
-import AssistantPanel from '@/components/AssistantPanel';
-import { connectSocket, disconnectSocket, getSocket } from '@/services/socket';
-import { Move } from '@/types';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
+} from 'react-native';
 
 const SERVER_URL = __DEV__
   ? 'http://localhost:3005'
@@ -120,21 +120,24 @@ const GameScreen = () => {
           }
         });
 
-        socket.on('aiMoveMade', (data: { move: any; currentFen: string }) => {
+        socket.on('aiMoveMade', (data: { move: any; currentFen?: string }) => {
           console.log('AI move received:', data);
-          if (isMounted) {
-            // Update the game state with the AI move
-            const aiMove: Move = {
-              from: data.move.from,
-              to: data.move.to,
-              san: data.move.san,
-              fenAfter: data.currentFen,
-              timestamp: Date.now()
-            };
-            addMove(aiMove);
-            setIsAIThinking(false);
-            console.log('AI move processed and board updated');
+          if (!isMounted) return;
+          // Some emissions may not include currentFen; ignore those and rely on gameUpdate
+          if (!data.currentFen) {
+            console.log('AI move received without FEN; waiting for gameUpdate');
+            return;
           }
+          const aiMove: Move = {
+            from: data.move.from,
+            to: data.move.to,
+            san: data.move.san,
+            fenAfter: data.currentFen,
+            timestamp: Date.now()
+          };
+          addMove(aiMove);
+          setIsAIThinking(false);
+          console.log('AI move processed and board updated');
         });
 
         socket.on('aiThinking', () => {
@@ -142,6 +145,12 @@ const GameScreen = () => {
           if (isMounted) {
             setIsAIThinking(true);
           }
+        });
+
+        socket.on('gameUpdate', (payload: any) => {
+          console.log('Game update received:', payload);
+          // After gameUpdate arrives, AI is no longer thinking
+          setIsAIThinking(false);
         });
 
         socket.on(
@@ -280,6 +289,10 @@ const GameScreen = () => {
       <View style={styles.loadingContainer}>
         <Crown size={48} color="#228B22" />
         <Text style={styles.loadingText}>Loading game...</Text>
+        {/* Debug aid */}
+        <Text style={{ marginTop: 8, color: '#666' }}>
+          Waiting for server...
+        </Text>
       </View>
     );
   }
