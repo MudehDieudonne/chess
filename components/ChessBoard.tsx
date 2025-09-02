@@ -21,13 +21,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   } = useGame();
 
   const fen = game?.fen() || 'start';
-  
+
   const onChessMove = (info: any) => {
     // Call the onMove prop with the move data
-    onMove({ 
-      from: info.move.from, 
-      to: info.move.to, 
-      promotion: info.move.promotion 
+    onMove({
+      from: info.move.from,
+      to: info.move.to,
+      promotion: info.move.promotion
     });
   };
 

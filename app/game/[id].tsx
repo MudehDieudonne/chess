@@ -102,7 +102,7 @@ const GameScreen = () => {
 
           // Emit joinGame event to backend
           console.log('Emitting joinGame event');
-                  socket.emit('joinGame', id as string);
+          socket.emit('joinGame', id as string);
         });
 
         socket.on(

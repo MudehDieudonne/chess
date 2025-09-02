@@ -8,13 +8,14 @@ import React, {
 import { Chess } from 'chess.js';
 import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
-import { connectSocket, getSocket } from '@/services/socket';
+import { connectSocket } from '@/services/socket';
 
 export type Square = string;
 export type Move = {
   san: string;
   from: string;
   to: string;
+  promotion?: string;
   fenAfter: string;
   timestamp: number;
 };
@@ -92,9 +93,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [isAITurn, setIsAITurn] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
 
-  const legalMoves = selectedSquare
-    ? game.moves({ square: selectedSquare, verbose: true }).map(m => m.to)
-    : [];
+  // Frontend becomes backend-driven; legal moves not computed locally
+  const legalMoves: string[] = [];
 
   useEffect(() => {
     if (hintCooldown > 0) {
@@ -162,19 +162,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       return {
         ...prev,
         fen: move.fenAfter,
-        moves: [...prev.moves, move],
-        status: newGame.isGameOver() ? 'finished' : prev.status,
-        result: newGame.isCheckmate()
-          ? newGame.turn() === 'w'
-            ? '0-1'
-            : '1-0'
-          : newGame.isDraw()
-            ? '1/2-1/2'
-            : undefined,
-        turn: newGame.turn(),
-        isCheckmate: newGame.isCheckmate(),
-        isDraw: newGame.isDraw(),
-        isCheck: newGame.isCheck()
+        moves: [...prev.moves, move]
       };
     });
   };
@@ -187,7 +175,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     } else {
       // If we don't have the FEN, apply the move to the current game
       const tempGame = new Chess(game.fen());
-      const moveResult = tempGame.move({ from: move.from, to: move.to, promotion: move.promotion });
+      const moveResult = tempGame.move({
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion
+      });
       if (moveResult) {
         const updatedMove: Move = {
           ...move,
@@ -229,6 +221,33 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       setIsAITurn(false);
       setIsAIThinking(false);
     });
+
+    // Backend-driven game updates
+    socket.off('gameUpdate');
+    socket.on(
+      'gameUpdate',
+      (payload: { gameId: string; fen: string; moves: any[]; status: string }) => {
+        // Trust backend FEN/state
+        setGame(new Chess(payload.fen));
+        setGameState(prev =>
+          prev
+            ? {
+                ...prev,
+                id: String(payload.gameId),
+                fen: payload.fen,
+                moves: prev.moves, // keep existing rendered moves; detailed history can be fetched if needed
+                status: payload.status === 'ongoing' ? 'active' : prev.status
+              }
+            : {
+                id: String(payload.gameId),
+                fen: payload.fen,
+                moves: [],
+                status: 'active',
+                playerColor: 'white'
+              }
+        );
+      }
+    );
 
     socket.on('aiThinking', () => {
       console.log('AI started thinking');
@@ -308,29 +327,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     to: Square,
     promotion?: string
   ): { from: string; to: string; promotion?: string } | false => {
-    const tempGame = new Chess(game.fen());
-    const moveResult = tempGame.move({ from, to, promotion });
-    if (!moveResult) {
-      return false;
+    // Do not apply locally; trust backend
+    if (gameState?.opponent === 'AI') {
+      setIsAIThinking(true);
     }
-
-    const newMove: Move = {
-      san: moveResult.san,
-      from: moveResult.from,
-      to: moveResult.to,
-      fenAfter: tempGame.fen(),
-      timestamp: Date.now()
-    };
-
-    updateGameAndState(newMove);
-
-    if (gameState) {
-      if (gameState.opponent === 'AI') {
-        setIsAIThinking(true);
-      }
-    }
-
-    // Return the move data for the socket emission
     return { from, to, promotion };
   };
 
@@ -376,22 +376,18 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         throw new Error('User must be logged in to load a game');
       }
 
-      // Create a fresh new game instead of loading sample with moves
-      const newGame = new Chess();
-      setGame(newGame);
-
-      setGameState({
-        id: gameId,
-        fen: newGame.fen(),
-        moves: [],
-        status: 'active',
-        playerColor: 'white',
-        opponent: 'AI',
-        turn: 'w',
-        isCheckmate: false,
-        isDraw: false,
-        isCheck: false
-      });
+      // Initialize minimal state; backend will drive updates
+      setGame(new Chess());
+      setGameState(prev =>
+        prev ?? {
+          id: gameId,
+          fen: new Chess().fen(),
+          moves: [],
+          status: 'active',
+          playerColor: 'white',
+          opponent: 'AI'
+        }
+      );
 
       setLastMove(null);
       setSelectedSquare(null);
