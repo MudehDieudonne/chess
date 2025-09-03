@@ -18,6 +18,7 @@ import React, { useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Easing,
   Platform,
   StyleSheet,
   Text,
@@ -87,8 +88,6 @@ const TooltipIcon = ({
         onPress={onPress}
         onPressIn={showTooltip}
         onPressOut={hideTooltip}
-        onMouseEnter={showTooltip}
-        onMouseLeave={hideTooltip}
       >
         {children}
       </TouchableOpacity>
@@ -100,10 +99,8 @@ const GameScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const { gameState, loadGame, game, resetGame, undoMove } = useGame();
-  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
-    null
-  );
+  const { gameState, loadGame, game, resetGame } = useGame(); // retire undoMove si non défini
+  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(null);
   const [loading, setLoading] = useState(true);
 
   const { width, height } = useWindowDimensions();
@@ -112,10 +109,6 @@ const GameScreen = () => {
   // Animations
   const [rotateAnim] = useState(new Animated.Value(0));
   const [boardScale] = useState(new Animated.Value(0));
-  const [resignScale] = useState(new Animated.Value(1));
-  const [drawScale] = useState(new Animated.Value(1));
-  const [resetScale] = useState(new Animated.Value(1));
-  const [undoScale] = useState(new Animated.Value(1));
   const [modalSlide] = useState(new Animated.Value(0));
   const [headerOpacity] = useState(new Animated.Value(0));
   const [headerTranslateY] = useState(new Animated.Value(-20));
@@ -170,22 +163,8 @@ const GameScreen = () => {
   };
 
   const handleOfferDraw = () => Alert.alert('Draw Offer', 'Draw offer sent to opponent');
-
-  const handleResetGame = () => {
-    Alert.alert('Reset Game', 'Are you sure you want to reset the game?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset', style: 'destructive', onPress: () => resetGame() },
-    ]);
-  };
-
+  const handleResetGame = () => resetGame();
   const handleUndoMove = () => Alert.alert('Undo Move', 'Undo last move');
-
-  const animateButtonPress = (buttonAnim: Animated.Value, callback: () => void) => {
-    Animated.sequence([
-      Animated.timing(buttonAnim, { toValue: 0.8, duration: 100, useNativeDriver: true }),
-      Animated.timing(buttonAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
-    ]).start(callback);
-  };
 
   const getCurrentTurn = (): string => (game?.turn() === 'w' ? 'White' : 'Black');
 
@@ -214,10 +193,7 @@ const GameScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push('/lobby')}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/lobby')}>
           <ArrowLeft size={24} color="#2D5016" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -239,36 +215,28 @@ const GameScreen = () => {
             <Lightbulb size={22} color="#2D5016" />
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      </View>
 
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <View
-          style={[
-            styles.boardContainer,
-            { width: boardSize, height: boardSize }
-          ]}
-        >
+        <View style={[styles.boardContainer, { width: boardSize, height: boardSize }]}>
           <ChessBoard />
         </View>
       </View>
 
-      {/* Bottom Bar avec Tooltips animés */}
+      {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <TooltipIcon label="Resign" onPress={handleResign}>
           <Flag size={28} color="#dc2626" />
         </TooltipIcon>
-
         <TooltipIcon label="Draw" onPress={handleOfferDraw}>
-          <Handshake size={28} color="#228B22" />
+          <Handshake size={28} color="#2D5016" />
         </TooltipIcon>
-
-        <TooltipIcon label="Reset" onPress={() => resetGame()}>
-          <RefreshCw size={28} color="#2D5016" />
+        <TooltipIcon label="Reset" onPress={handleResetGame}>
+          <RefreshCw size={28} color="#8B4513" />
         </TooltipIcon>
-
-        <TooltipIcon label="Undo" onPress={undoMove}>
-          <Undo2 size={28} color="#2D5016" />
+        <TooltipIcon label="Undo" onPress={handleUndoMove}>
+          <Undo2 size={28} color="#8B4513" />
         </TooltipIcon>
       </View>
     </View>
@@ -277,25 +245,9 @@ const GameScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa'
-  },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' },
   loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8',
-    minHeight: 60
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 50 : 30, paddingBottom: 12, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e8e8e8', minHeight: 60 },
   backButton: { padding: 8 },
   headerCenter: { flex: 1, alignItems: 'center', marginHorizontal: 12 },
   opponentInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -304,39 +256,10 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: 12 },
   headerIcon: { padding: 8 },
   mainContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  boardContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 80,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 14,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e8e8e8'
-  },
-  tooltip: {
-    position: 'absolute',
-    bottom: 30
-  },
-  tooltipText: {
-    color: '#2D5016',
-    fontSize: 13,
-    fontWeight: '500'
-  }
+  boardContainer: { justifyContent: 'center', alignItems: 'center', marginBottom: 80, backgroundColor: 'white', borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 8 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 14, backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#e8e8e8' },
+  tooltip: { position: 'absolute', bottom: 30 },
+  tooltipText: { color: '#2D5016', fontSize: 13, fontWeight: '500' }
 });
 
 export default GameScreen;

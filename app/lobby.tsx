@@ -178,7 +178,7 @@ const Lobby = () => {
   };
 
   return (
-    <LinearGradient colors={['#f3e5f5', '#e1bee7']} style={{ flex: 1 }}>
+    <LinearGradient colors={['#F5DEB3', '#DEB887', '#8B4513']} style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Header */}
@@ -229,11 +229,11 @@ const Lobby = () => {
 
             <Animated.View style={[styles.card, cardAnimatedStyle(2)]}>
               <View style={styles.cardHeader}>
-                <History size={20} color="#f57c00" />
+                <History size={20} color="#FF9500" />
                 <Text style={styles.cardTitle}>Join Game</Text>
               </View>
               <ScaleButton style={styles.gradientButton} onPress={handleJoinGame}>
-                <LinearGradient colors={['#ffb74d', '#f57c00']} style={styles.gradientButtonInner}>
+                <LinearGradient colors={['#FF9500', '#FF9500']} style={styles.gradientButtonInner}>
                   <Text style={styles.buttonText}>Join Game</Text>
                 </LinearGradient>
               </ScaleButton>
