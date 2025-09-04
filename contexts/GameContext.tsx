@@ -10,6 +10,12 @@ import React, {
 import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
 
+declare global {
+  interface Window {
+    __currentSocketGameId?: string;
+  }
+}
+
 export type Square = string;
 export type Move = {
   san: string;
@@ -45,6 +51,7 @@ interface GameContextType {
   game: Chess;
   gameState: GameState | null;
   lastMove: Move | null;
+  lastAnimatedMove: Move | null;
   legalMoves: string[];
   selectedSquare: Square | null;
   assistantHint: AssistantHint | null;
@@ -59,7 +66,7 @@ interface GameContextType {
     to: Square,
     promotion?: string
   ) => { from: string; to: string; promotion?: string } | false;
-  addMove: (move: Move) => void;
+  addMove: (move: Move) => Move | null;
   requestHint: () => Promise<void>;
   selectSquare: (square: Square | null) => void;
   resetGame: () => void;
@@ -92,6 +99,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [timeLeft, setTimeLeft] = useState({ white: 600, black: 600 });
   const [isAITurn, setIsAITurn] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
+  const [lastAnimatedMove, setLastAnimatedMove] = useState<Move | null>(null);
 
   // Frontend becomes backend-driven; legal moves not computed locally
   const legalMoves: string[] = [];
@@ -153,45 +161,85 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   }, [game, gameState, isAIThinking]);
 
-  const updateGameAndState = (move: Move) => {
+  const updateGameAndState = (move: Move): Move | null => {
     console.log('[CTX] updateGameAndState:', {
       from: move.from,
       to: move.to,
       san: move.san,
       fenAfter: move.fenAfter
     });
+    console.log('[CTX] before apply: game.fen()', game.fen());
+
     try {
-      const newGame = new Chess(move.fenAfter);
-      setGame(newGame);
-      setLastMove(move);
-      setGameState(prev => {
-        if (!prev) return null;
-        const next = {
-          ...prev,
-          fen: move.fenAfter,
-          moves: [...prev.moves, move]
-        };
-        console.log('[CTX] gameState updated (move):', next.fen);
-        return next;
+      // Create a copy of the CURRENT game state
+      const newGame = new Chess(game.fen());
+
+      // Apply the move to the copy
+      const moveResult = newGame.move({
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion
       });
+
+      if (moveResult) {
+        setGame(newGame);
+        setLastMove(move);
+        setLastAnimatedMove(move);
+
+        setGameState(prev => {
+          if (!prev) return null;
+          const next = {
+            ...prev,
+            fen: newGame.fen(),
+            moves: [...prev.moves, move],
+            turn: newGame.turn(),
+            isCheck: newGame.isCheck(),
+            isCheckmate: newGame.isCheckmate(),
+            isDraw: newGame.isDraw()
+          };
+          console.log('[CTX] gameState updated (move):', next.fen);
+          return next;
+        });
+        console.log('[CTX] after apply: newGame.fen()', newGame.fen());
+
+        return move;
+      } else {
+        console.log('[CTX] Invalid move attempted:', move);
+        return null;
+      }
     } catch (e) {
-      console.log('[CTX] updateGameAndState invalid FEN:', move.fenAfter, e);
+      console.log('[CTX] updateGameAndState error:', e);
+      return null;
     }
   };
 
   const applyServerFen = (fen: string, source: string) => {
     console.log('[CTX] applyServerFen from', source, 'fen:', fen);
     try {
-      setGame(new Chess(fen));
+      const newGame = new Chess(fen);
+      setGame(newGame);
+      setLastAnimatedMove(null);
+
       setGameState(prev =>
         prev
-          ? { ...prev, fen }
+          ? {
+              ...prev,
+              fen,
+              turn: newGame.turn(),
+              isCheck: newGame.isCheck(),
+              isCheckmate: newGame.isCheckmate(),
+              isDraw: newGame.isDraw()
+            }
           : {
               id: 'unknown',
               fen,
               moves: [],
               status: 'active',
-              playerColor: 'white'
+              playerColor: 'white',
+              turn: newGame.turn(),
+              isCheck: newGame.isCheck(),
+              isCheckmate: newGame.isCheckmate(),
+              isDraw: newGame.isDraw()
             }
       );
     } catch (e) {
@@ -199,16 +247,35 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
-  const addMove = (move: Move) => {
-    // For AI moves, we need to apply the move to the current game state
+  const addMove = (move: Move): Move | null => {
+    console.log('[CTX] addMove called with:', move);
+
+    // FIX: Handle FEN mismatch by using the move's FEN directly
+    if (move.fenAfter && move.fenAfter !== game.fen()) {
+      console.log(
+        '[CTX] FEN mismatch! Using move FEN instead of current game state'
+      );
+      console.log('[CTX] Current game FEN:', game.fen());
+      console.log('[CTX] Move FEN:', move.fenAfter);
+
+      // Just apply the FEN directly
+      console.log(
+        '[CTX] Applying final FEN from server (bypassing move validation)'
+      );
+      applyServerFen(move.fenAfter, 'addMove-direct');
+
+      // Also update last move for potential animation
+      setLastMove(move);
+      setLastAnimatedMove(move);
+
+      return move;
+    }
+
     if (move.fenAfter) {
       console.log('[CTX] addMove with fenAfter, applying');
-      updateGameAndState(move);
+      return updateGameAndState(move);
     } else {
-      console.log(
-        '[CTX] addMove without fenAfter, attempting local derive (deprecated path)'
-      );
-      // If we don't have the FEN, apply the move to the current game
+      console.log('[CTX] addMove without fenAfter, attempting local derive');
       const tempGame = new Chess(game.fen());
       const moveResult = tempGame.move({
         from: move.from,
@@ -221,14 +288,25 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
           fenAfter: tempGame.fen(),
           san: moveResult.san
         };
-        updateGameAndState(updatedMove);
+        return updateGameAndState(updatedMove);
       } else {
         console.log('[CTX] addMove local derive failed for', move);
+        return null;
       }
     }
   };
 
   const connectToSocket = async (gameId: string) => {
+    console.log('[CTX] connectToSocket called for game:', gameId);
+
+    // Check if we're already connected to this game
+    if (window.__currentSocketGameId === gameId) {
+      console.log('[CTX] Already connected to this game, skipping');
+      return;
+    }
+
+    window.__currentSocketGameId = gameId;
+
     if (!user?.id) {
       throw new Error('User ID is required for socket connection');
     }
@@ -247,16 +325,47 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
     socket.off('aiMoveMade');
     socket.on('aiMoveMade', (data: { move: Move; currentFen?: string }) => {
-      const aiMove: Move = {
-        from: data.move.from,
-        to: data.move.to,
-        san: data.move.san,
-        fenAfter: data.currentFen ?? game.fen(),
-        timestamp: Date.now()
-      };
+      console.log('[CTX] aiMoveMade received:', data);
+
+      // FIX: Use the FEN from the AI move directly
       if (data.currentFen) {
-        updateGameAndState(aiMove);
+        console.log('[CTX] Using FEN from aiMoveMade:', data.currentFen);
+
+        const aiMove: Move = {
+          from: data.move.from,
+          to: data.move.to,
+          san: data.move.san,
+          fenAfter: data.currentFen,
+          timestamp: Date.now(),
+          promotion: data.move.promotion
+        };
+
+        // Just apply the FEN directly (the move already happened on server)
+        console.log('[CTX] Applying final FEN from server');
+        applyServerFen(data.currentFen, 'aiMoveMade-direct');
+
+        // Also update last move for potential animation
+        setLastMove(aiMove);
+        setLastAnimatedMove(aiMove);
+      } else {
+        console.log(
+          '[CTX] No FEN provided with AI move, using current game state'
+        );
+        const aiMove: Move = {
+          from: data.move.from,
+          to: data.move.to,
+          san: data.move.san,
+          fenAfter: game.fen(),
+          timestamp: Date.now(),
+          promotion: data.move.promotion
+        };
+
+        const appliedMove = addMove(aiMove);
+        if (!appliedMove) {
+          console.log('[CTX] AI move failed without FEN');
+        }
       }
+
       setIsAITurn(false);
       setIsAIThinking(false);
     });
@@ -272,30 +381,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         status: string;
       }) => {
         console.log('CTX gameUpdate ->', payload);
-        try {
-          setGame(new Chess(payload.fen));
-        } catch (e) {
-          console.log('CTX gameUpdate invalid FEN:', payload.fen, e);
-        }
-        // Any gameUpdate means AI finished thinking
-        setIsAIThinking(false);
-        setGameState(prev =>
-          prev
-            ? {
-                ...prev,
-                id: String(payload.gameId),
-                fen: payload.fen,
-                moves: prev.moves,
-                status: payload.status === 'ongoing' ? 'active' : prev.status
-              }
-            : {
-                id: String(payload.gameId),
-                fen: payload.fen,
-                moves: [],
-                status: 'active',
-                playerColor: 'white'
-              }
-        );
+
+        // FIX: Force update the game state regardless of current FEN
+        console.log('[CTX] Force updating game state from server');
+        applyServerFen(payload.fen, 'gameUpdate-force');
+
+        // Any gameUpdate means AI finished thinking (only if it was AI turn)
+        setIsAIThinking(prev => (prev ? false : prev));
       }
     );
 
@@ -377,7 +469,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     to: Square,
     promotion?: string
   ): { from: string; to: string; promotion?: string } | false => {
-    // Do not apply locally; trust backend
+    // Do not apply locally trustx backend
     if (gameState?.opponent === 'AI') {
       setIsAIThinking(true);
     }
@@ -461,6 +553,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     game,
     gameState,
     lastMove,
+    lastAnimatedMove,
     legalMoves,
     selectedSquare,
     assistantHint,

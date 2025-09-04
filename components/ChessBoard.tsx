@@ -23,6 +23,14 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   // Prefer server-driven fen from gameState to avoid desync
   const fen = gameState?.fen || game?.fen() || 'start';
 
+  React.useEffect(() => {
+    console.log('[Board] fen updated ->', fen);
+  }, [fen]);
+
+  React.useEffect(() => {
+    console.log('[Board] isAIThinking ->', isAIThinking);
+  }, [isAIThinking]);
+
   const onChessMove = (info: any) => {
     // Call the onMove prop with the move data
     onMove({
