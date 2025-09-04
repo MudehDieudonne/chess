@@ -17,7 +17,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     selectSquare
   } = useGame();
 
-  // Convert chess.js FEN to react-native-chessboard format
   const fen = game?.fen() || 'start';
 
   const onSquarePress = (square: string) => {
@@ -34,21 +33,33 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     }
   };
 
-  // Get legal moves for highlighting
   const getHighlightedSquares = () => {
     const highlights: { [square: string]: string } = {};
 
     if (selectedSquare) {
-      // Selected square highlight (purple/violet)
       highlights[selectedSquare] = '#8B5CF6';
-
-      // Legal moves highlight (semi-transparent purple)
       legalMoves.forEach(move => {
         highlights[move] = 'rgba(139, 92, 246, 0.4)';
       });
     }
 
     return highlights;
+  };
+
+  // Fonction pour personnaliser les pièces
+  const customPieceStyle = (piece: string) => {
+    // Pions noirs et autres pièces noires
+    if (piece.toLowerCase() === piece) {
+      return {
+        color: '#A78BFA', // violet
+        fontWeight: 'bold',
+      };
+    }
+    // Pièces blanches normales (violet clair)
+    return {
+      color: '#F3E8FF',
+      fontWeight: 'bold',
+    };
   };
 
   return (
@@ -60,19 +71,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
         boardStyle={styles.board}
         colors={{
           white: "#808080",
-          black: "#000000",
-          lastMoveHighlight: "#8B5CF6",
+          black: "#1E1B4B", // case noire foncée
+          lastMoveHighlight: "#A78BFA",
           checkmateHighlight: "#FF0000",
         }}
         showCoordinates={true}
         showLegalMoves={false}
-        pieceStyle={{
-          // Style des pièces plus contrastées
-          fontWeight: 'bold'
-        }}
+        pieceStyle={customPieceStyle}
         coordinatesStyle={{
           fontSize: 12,
-          color: '#A0AEC0',
+          color: '#C4B5FD',
           fontWeight: '500'
         }}
       />

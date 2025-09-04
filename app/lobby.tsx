@@ -148,6 +148,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
+    marginBottom: 16,
   },
   primaryButtonText: {
     color: "#FFFFFF",
@@ -164,6 +165,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
+    marginBottom: 16,
   },
   aiButtonText: {
     color: "#FFFFFF",
@@ -182,6 +184,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
+    marginBottom: 16,
   },
   friendButtonText: {
     color: "#FFFFFF",
@@ -200,6 +203,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
+    marginBottom: 16,
   },
   offlineButtonText: {
     color: "#FFFFFF",
