@@ -78,6 +78,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const useGame = (): GameContextType => {
   const context = useContext(GameContext);
   if (!context) throw new Error('useGame must be used within GameProvider');
+  if (!context) throw new Error('useGame must be used within GameProvider');
   return context;
 };
 
@@ -499,6 +500,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   };
 
   const selectSquare = (square: Square | null) => setSelectedSquare(square);
+  const selectSquare = (square: Square | null) => setSelectedSquare(square);
 
   const resetGame = () => {
     setGame(new Chess());
@@ -547,6 +549,32 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetGame = (gameId?: string) => {
+    const idToReset = gameId ?? gameState?.id;
+    if (!idToReset || !socket) return;
+
+    // Émet l’événement resetBoard au backend
+    socket.emit('resetBoard', { gameId: idToReset });
+
+    // Réinitialisation locale immédiate pour fluidité UX
+    const newGame = new Chess();
+    setGame(newGame);
+    setGameState(prev =>
+      prev
+        ? {
+            ...prev,
+            fen: newGame.fen(),
+            moves: [],
+            status: 'active',
+            result: undefined
+          }
+        : null
+    );
+    setLastMove(null);
+    setSelectedSquare(null);
+    setAssistantHint(null);
   };
 
   const value: GameContextType = {

@@ -1,70 +1,17 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ImageBackground,
-  Alert,
-  ActivityIndicator,
-  Clipboard,
-  Platform
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import {
-  Crown,
-  Bot,
-  Users,
-  Plus,
-  History,
-  Settings,
-  LogOut,
-  Clock,
-  Trophy,
-  RefreshCw
-} from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { useGame } from '@/contexts/GameContext';
+"use client"
 
-interface GameHistoryItem {
-  id: string;
-  opponent: string;
-  result: '1-0' | '0-1' | '1/2-1/2';
-  date: string;
-  moves: number;
-}
+import Sidebar from "@/components/Sidebar"
+import { useAuth } from "@/contexts/AuthContext"
+import { useGame } from "@/contexts/GameContext"
+import * as Clipboard from "expo-clipboard"
+import { LinearGradient } from "expo-linear-gradient"
+import { useRouter } from "expo-router"
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 
 const Lobby = () => {
-  const router = useRouter();
-  const { user, logout } = useAuth();
-  const { createGame, loading } = useGame();
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Demo game history
-  const [gameHistory] = useState<GameHistoryItem[]>([
-    {
-      id: 'demo1',
-      opponent: 'ChessBot Pro',
-      result: '1-0',
-      date: new Date().toISOString(),
-      moves: 34
-    },
-    {
-      id: 'demo2',
-      opponent: 'Player_Magnus',
-      result: '1/2-1/2',
-      date: new Date(Date.now() - 86400000).toISOString(),
-      moves: 67
-    },
-    {
-      id: 'demo3',
-      opponent: 'AI Grandmaster',
-      result: '0-1',
-      date: new Date(Date.now() - 172800000).toISOString(),
-      moves: 42
-    }
-  ]);
+  const router = useRouter()
+  const { user } = useAuth()
+  const { createGame, loading } = useGame()
 
   const handlePlayVsAI = async () => {
     if (!user?.id) {
@@ -73,467 +20,197 @@ const Lobby = () => {
     }
 
     try {
-      const gameId = await createGame(true);
-      router.push(`/game/${gameId}`);
+      const gameId = await createGame(true)
+      router.push(`/game/${gameId}`)
     } catch (error) {
-      console.error('Failed to create AI game:', error);
-      Alert.alert('Error', 'Failed to create AI game. Please try again.');
+      console.error("Failed to create AI game:", error)
+      Alert.alert("Error", "Failed to create AI game. Please try again.")
     }
-  };
+  }
 
   const handleCreateInvite = async () => {
-    const inviteToken = 'invite_' + Date.now();
-    const inviteUrl = `https://yourapp.com/invite/${inviteToken}`;
-
+    const inviteToken = "invite_" + Date.now()
+    const inviteUrl = `https://yourapp.com/invite/${inviteToken}`
     try {
-      await Clipboard.setStringAsync(inviteUrl);
-      Alert.alert('Invite Created', 'Invite link copied to clipboard!');
-      router.push(`/invite/${inviteToken}`);
+      await Clipboard.setStringAsync(inviteUrl)
+      Alert.alert("Invite Created", "Invite link copied to clipboard!")
+      router.push(`/invite/${inviteToken}`)
     } catch (error) {
-      Alert.alert('Error', 'Failed to copy invite link.');
+      Alert.alert("Error", "Failed to copy invite link.")
     }
-  };
+  }
 
-  const handleJoinGame = () => {
-    Alert.prompt(
-      'Join Game',
-      'Enter game invite token:',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Join',
-          onPress: token => {
-            if (token) {
-              router.push(`/invite/${token}`);
-            }
-          }
-        }
-      ],
-      'plain-text'
-    );
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Simulate refresh
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRefreshing(false);
-    Alert.alert('Refreshed', 'Game history updated');
-  };
-
-  const getResultBadge = (result: string, isWin: boolean) => {
-    const badgeStyle =
-      result === '1/2-1/2'
-        ? styles.drawBadge
-        : isWin
-          ? styles.winBadge
-          : styles.lossBadge;
-
-    const badgeText = result === '1/2-1/2' ? 'Draw' : isWin ? 'Win' : 'Loss';
-
-    return (
-      <View style={[styles.badge, badgeStyle]}>
-        <Text style={styles.badgeText}>{badgeText}</Text>
-      </View>
-    );
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays - 1} days ago`;
-    return date.toLocaleDateString();
-  };
+  const handlePlayOffline = () => {
+    router.push("/offline")
+  }
 
   return (
-    <ImageBackground
-      source={{
-        uri: 'https://images.unsplash.com/photo-1525947088131-b701cd0f6dc3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8d29vZGVuJTIwYmFja2dyb3VuZHxlbnwwfHwwfHx8MA%3D%3D'
-      }}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay} />
-
+    <View style={styles.background}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.logoContainer}>
-            <Crown size={28} color="#228B22" />
-            <Text style={styles.title}>BrainChess</Text>
-          </View>
-
-          <View style={styles.userContainer}>
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>
-                {user?.displayName || 'Player'}
-              </Text>
-              <Text style={styles.userEmail}>{user?.email}</Text>
-            </View>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => router.push('/settings')}
-              >
-                <Settings size={20} color="#2D5016" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton} onPress={logout}>
-                <LogOut size={20} color="#2D5016" />
-              </TouchableOpacity>
-            </View>
-          </View>
+        <Text style={styles.appTitle}>Chessizen</Text>
+        <Text style={styles.appSubtitle}>Master the Game</Text>
+        <View style={styles.userCard}>
+          <Text style={styles.userName}>{user?.displayName || "ChessMaster"}</Text>
+          <Text style={styles.userStats}>🏆 1654 🔥 7 streak</Text>
         </View>
       </View>
 
       {/* Main Content */}
       <ScrollView style={styles.container}>
         <View style={styles.content}>
-          {/* Quick Actions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Plus size={20} color="#2D5016" /> Start Playing
-            </Text>
+          {/* Play Online */}
+          <TouchableOpacity onPress={() => router.push("/online")}>
+            <LinearGradient
+              colors={["#8B5CF6", "#7C3AED", "#6D28D9"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>⚡ Play Online</Text>
+            </LinearGradient>
+          </TouchableOpacity>
 
-            <View style={styles.actionGrid}>
-              {/* Play vs AI */}
-              <View style={styles.actionCard}>
-                <View style={styles.cardHeader}>
-                  <Bot size={20} color="#228B22" />
-                  <Text style={styles.cardTitle}>Play vs AI</Text>
-                </View>
-                <Text style={styles.cardDescription}>
-                  Challenge our intelligent chess engine
-                </Text>
-                <TouchableOpacity
-                  style={[styles.button, loading && styles.buttonDisabled]}
-                  onPress={handlePlayVsAI}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.buttonText}>Start Game</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+          {/* Play vs AI */}
+          <TouchableOpacity style={styles.aiButton} onPress={handlePlayVsAI} disabled={loading}>
+            {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.aiButtonText}>🤖 Play vs AI</Text>}
+          </TouchableOpacity>
 
-              {/* Create Invite */}
-              <View style={styles.actionCard}>
-                <View style={styles.cardHeader}>
-                  <Users size={20} color="#228B22" />
-                  <Text style={styles.cardTitle}>Create Invite</Text>
-                </View>
-                <Text style={styles.cardDescription}>
-                  Invite a friend to play with you
-                </Text>
-                <TouchableOpacity
-                  style={[styles.button, styles.secondaryButton]}
-                  onPress={handleCreateInvite}
-                >
-                  <Text style={styles.buttonText}>Create Invite Link</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Play vs Friend */}
+          <TouchableOpacity style={styles.friendButton} onPress={handleCreateInvite}>
+            <Text style={styles.friendButtonText}>👥 Play vs Friend</Text>
+          </TouchableOpacity>
 
-              {/* Join Game */}
-              <View style={styles.actionCard}>
-                <View style={styles.cardHeader}>
-                  <Trophy size={20} color="#228B22" />
-                  <Text style={styles.cardTitle}>Join Game</Text>
-                </View>
-                <Text style={styles.cardDescription}>
-                  Enter an invite token to join
-                </Text>
-                <TouchableOpacity
-                  style={[styles.button, styles.outlineButton]}
-                  onPress={handleJoinGame}
-                >
-                  <Text style={styles.outlineButtonText}>Join Game</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Recent Games */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                <History size={20} color="#2D5016" /> Recent Games
-              </Text>
-              <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
-                <RefreshCw size={18} color="#2D5016" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.historyCard}>
-              {gameHistory.map((game, index) => {
-                const isWin = game.result === '1-0';
-                return (
-                  <TouchableOpacity
-                    key={game.id}
-                    style={[
-                      styles.historyItem,
-                      index < gameHistory.length - 1 && styles.historyItemBorder
-                    ]}
-                    onPress={() => router.push(`/history/${game.id}`)}
-                  >
-                    <View style={styles.historyContent}>
-                      <View style={styles.opponentInfo}>
-                        {game.opponent.includes('Bot') ||
-                        game.opponent.includes('AI') ? (
-                          <Bot size={16} color="#666" />
-                        ) : (
-                          <Users size={16} color="#666" />
-                        )}
-                        <Text style={styles.opponentName}>{game.opponent}</Text>
-                      </View>
-
-                      <View style={styles.gameInfo}>
-                        <View style={styles.gameStats}>
-                          <Clock size={14} color="#666" />
-                          <Text style={styles.gameStatText}>
-                            {game.moves} moves
-                          </Text>
-                        </View>
-                        {getResultBadge(game.result, isWin)}
-                        <Text style={styles.gameDate}>
-                          {formatDate(game.date)}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          {/* Play Offline */}
+          <TouchableOpacity style={styles.offlineButton} onPress={handlePlayOffline}>
+            <Text style={styles.offlineButtonText}>🎮 Play Offline</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-    </ImageBackground>
-  );
-};
 
-const testGameCreation = async () => {
-  try {
-    const response = await gameApi.startGame({ vsAI: true });
-    if (!response.error) {
-      console.log('Game created:', response.data);
-      router.push(`/game/${response.data.gameId}`);
-    }
-  } catch (error) {
-    console.error('Game creation failed:', error);
-  }
-};
+      {/* Sidebar */}
+      <Sidebar currentPage="lobby" />
+    </View>
+  )
+}
 
 const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)'
+  background: {
+    flex: 1,
+    backgroundColor: "#0F0F23",
   },
   container: {
-    flex: 1
+    flex: 1,
   },
   content: {
-    padding: 16
+    padding: 20,
+    gap: 16,
   },
   header: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8',
-    paddingTop: Platform.OS === 'ios' ? 50 : 20
+    alignItems: "center",
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingBottom: 20,
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12
+  appTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#A855F7",
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
+  appSubtitle: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 4,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#228B22'
-  },
-  userContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12
-  },
-  userInfo: {
-    alignItems: 'flex-end'
+  userCard: {
+    marginTop: 20,
+    backgroundColor: "#1E1B4B",
+    borderRadius: 20,
+    padding: 20,
+    width: "90%",
+    alignItems: "center",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2D5016'
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#666'
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8
-  },
-  iconButton: {
-    padding: 8
-  },
-  section: {
-    marginBottom: 24
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#2D5016',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
-  },
-  actionGrid: {
-    gap: 16
-  },
-  actionCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8
-  },
-  cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#2D5016'
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
-  cardDescription: {
+  userStats: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 16
+    color: "#C084FC",
+    marginTop: 4,
   },
-  button: {
-    backgroundColor: '#228B22',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center'
+  primaryButton: {
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: "center",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  buttonDisabled: {
-    backgroundColor: '#9ec19e'
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
-  secondaryButton: {
-    backgroundColor: '#2D5016'
+  aiButton: {
+    backgroundColor: "#7C3AED",
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: "center",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#228B22'
+  aiButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600'
+  friendButton: {
+    backgroundColor: "#5B21B6",
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#8B5CF6",
+    shadowColor: "#5B21B6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  outlineButtonText: {
-    color: '#228B22',
-    fontSize: 16,
-    fontWeight: '600'
+  friendButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
-  historyCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+  offlineButton: {
+    backgroundColor: "#312E81",
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#7C3AED",
+    shadowColor: "#312E81",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  historyItem: {
-    padding: 16
+  offlineButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
-  historyItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8'
-  },
-  historyContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  opponentInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
-  },
-  opponentName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2D5016'
-  },
-  gameInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12
-  },
-  gameStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4
-  },
-  gameStatText: {
-    fontSize: 12,
-    color: '#666'
-  },
-  gameDate: {
-    fontSize: 12,
-    color: '#666'
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'white'
-  },
-  winBadge: {
-    backgroundColor: '#228B22'
-  },
-  lossBadge: {
-    backgroundColor: '#dc2626'
-  },
-  drawBadge: {
-    backgroundColor: '#666'
-  }
-});
+})
 
-export default Lobby;
+export default Lobby

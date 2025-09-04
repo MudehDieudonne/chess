@@ -9,6 +9,8 @@ import {
   ArrowLeft,
   Bot,
   Crown,
+  Bot,
+  Crown,
   Flag,
   Handshake,
   History,
@@ -287,7 +289,7 @@ const GameScreen = () => {
   if (loading || !gameState) {
     return (
       <View style={styles.loadingContainer}>
-        <Crown size={48} color="#228B22" />
+        <Crown size={48} color="#8B5CF6" />
         <Text style={styles.loadingText}>Loading game...</Text>
         {/* Debug aid */}
         <Text style={{ marginTop: 8, color: '#666' }}>
@@ -297,6 +299,8 @@ const GameScreen = () => {
     );
   }
 
+  const isWhiteTurn = currentTurn === 'w';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -304,7 +308,7 @@ const GameScreen = () => {
           style={styles.backButton}
           onPress={() => router.push('/lobby')}
         >
-          <ArrowLeft size={24} color="#2D5016" />
+          <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.opponentInfo}>
@@ -405,7 +409,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa'
+    backgroundColor: '#1a1a2e'
   },
   loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
   errorContainer: {
@@ -455,11 +459,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8
   },
-  controls: {
+  bottomBar: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 16,
