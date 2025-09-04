@@ -39,10 +39,12 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     const highlights: { [square: string]: string } = {};
 
     if (selectedSquare) {
-      highlights[selectedSquare] = '#FFD700';
+      // Selected square highlight (purple/violet)
+      highlights[selectedSquare] = '#8B5CF6';
 
+      // Legal moves highlight (semi-transparent purple)
       legalMoves.forEach(move => {
-        highlights[move] = '#90EE90';
+        highlights[move] = 'rgba(139, 92, 246, 0.4)';
       });
     }
 
@@ -56,16 +58,29 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
         onSquarePress={onSquarePress}
         highlightedSquares={getHighlightedSquares()}
         boardStyle={styles.board}
-        lightSquareColor="#F0D9B5"
-        darkSquareColor="#B58863"
+        colors={{
+          white: "#808080",
+          black: "#000000",
+          lastMoveHighlight: "#8B5CF6",
+          checkmateHighlight: "#FF0000",
+        }}
         showCoordinates={true}
         showLegalMoves={false}
+        pieceStyle={{
+          // Style des pièces plus contrastées
+          fontWeight: 'bold'
+        }}
+        coordinatesStyle={{
+          fontSize: 12,
+          color: '#A0AEC0',
+          fontWeight: '500'
+        }}
       />
 
       {game?.isGameOver() && (
         <View style={styles.gameOverlay}>
           <View style={styles.gameOverlayContent}>
-            <Text style={styles.gameOverlayText}>
+            <Text style={styles.gameOverlayTitle}>
               {game.isCheckmate()
                 ? 'Checkmate!'
                 : game.isDraw()
@@ -73,6 +88,12 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
                   : game.isStalemate()
                     ? 'Stalemate!'
                     : 'Game Over'}
+            </Text>
+            <Text style={styles.gameOverlaySubtext}>
+              {game.isCheckmate() 
+                ? game.turn() === 'w' ? 'Black Wins!' : 'White Wins!'
+                : 'Match Ended'
+              }
             </Text>
           </View>
         </View>
@@ -86,15 +107,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    backgroundColor: '#B58863'
+    backgroundColor: '#2D3748',
+    borderRadius: 12,
+    padding: 8,
   },
   board: {
-    borderRadius: 12
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4A5568',
   },
   gameOverlay: {
     position: 'absolute',
@@ -102,21 +122,36 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12
   },
   gameOverlayContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center'
+    backgroundColor: '#1a1a2e',
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
   },
-  gameOverlayText: {
-    fontSize: 18,
+  gameOverlayTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#2D5016'
+    color: '#8B5CF6',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  gameOverlaySubtext: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    opacity: 0.9,
   }
 });
 
