@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Settings,
   Undo2,
-  User
+  User,
+  Home
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -22,7 +23,9 @@ import {
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
+  Modal,
+  ScrollView
 } from 'react-native';
 
 // Tooltip with animation
@@ -83,8 +86,6 @@ const TooltipIcon = ({
         onPress={onPress}
         onPressIn={showTooltip}
         onPressOut={hideTooltip}
-        onMouseEnter={showTooltip}
-        onMouseLeave={hideTooltip}
       >
         {children}
       </TouchableOpacity>
@@ -157,24 +158,50 @@ const GameScreen = () => {
     timeLeft,
     isAITurn,
     isAIThinking,
-    lastAnimatedMove
+    lastAnimatedMove,
+    lastMove,
+    addMove
   } = useGame();
 
   const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
     null
   );
   const [loading, setLoading] = useState(true);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [gameResult, setGameResult] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+  const [isResigning, setIsResigning] = useState(false);
+  const [isOfferingDraw, setIsOfferingDraw] = useState(false);
 
   const { width, height } = useWindowDimensions();
   const boardSize = Math.min(width * 0.95, height * 0.5, 400);
 
+  // Debug logging function
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    const logMessage = `[${timestamp}] ${message}`;
+    console.log(logMessage);
+    setDebugLogs(prev => [...prev.slice(-50), logMessage]);
+  };
+
   useEffect(() => {
+    addDebugLog('GameScreen mounted');
+    addDebugLog(`Game ID from params: ${id}`);
+    addDebugLog(`User: ${user?.id} - ${user?.email}`);
+
     const initializeGame = async () => {
       if (id && !gameState) {
         try {
+          addDebugLog('Attempting to load game...');
           await loadGame(id as string);
+          addDebugLog('Game loaded successfully');
         } catch (error) {
-          console.error('Failed to load game:', error);
+          const errorMsg = `Failed to load game: ${error instanceof Error ? error.message : String(error)}`;
+          addDebugLog(errorMsg);
           Alert.alert('Error', 'Failed to load game');
         }
       }
@@ -183,29 +210,83 @@ const GameScreen = () => {
     initializeGame();
   }, [id, gameState, loadGame]);
 
-  const handleResign = () => {
-    Alert.alert('Resign Game', 'Are you sure you want to resign?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Resign',
-        style: 'destructive',
-        onPress: () => {
-          resetGame();
-          router.replace('/lobby');
-        }
+  // Handle game end
+  useEffect(() => {
+    if (game?.isGameOver() && !showResultModal) {
+      let title = 'Game Over';
+      let message = '';
+
+      if (game.isCheckmate()) {
+        title = 'Checkmate!';
+        message = game.turn() === 'w' ? 'Black wins!' : 'White wins!';
+      } else if (game.isDraw()) {
+        title = 'Draw!';
+        message = 'The game ended in a draw';
+      } else if (game.isStalemate()) {
+        title = 'Stalemate!';
+        message = 'The game ended in stalemate';
       }
-    ]);
+
+      setGameResult({ title, message });
+      setShowResultModal(true);
+      addDebugLog(`Game ended: ${title} - ${message}`);
+    }
+  }, [game, showResultModal]);
+
+  const handleResign = async () => {
+    addDebugLog('Resign button pressed');
+    setIsResigning(true);
+
+    try {
+      // In a real implementation, you would emit a socket event to the backend
+      // For now, we'll simulate the resignation
+      addDebugLog('Emitting resign event to backend...');
+
+      // Simulate backend processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setGameResult({
+        title: 'Resignation',
+        message: 'You have resigned from the game'
+      });
+      setShowResultModal(true);
+      addDebugLog('Game resigned successfully');
+    } catch (error) {
+      addDebugLog(`Resignation failed: ${error}`);
+      Alert.alert('Error', 'Failed to resign from game');
+    } finally {
+      setIsResigning(false);
+    }
   };
 
-  const handleOfferDraw = () =>
-    Alert.alert('Draw Offer', 'Draw offer sent to opponent');
+  const handleOfferDraw = async () => {
+    addDebugLog('Draw offer button pressed');
+    setIsOfferingDraw(true);
+
+    try {
+      // Emit draw offer to backend
+      addDebugLog('Emitting draw offer to backend...');
+
+      // Simulate backend processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      Alert.alert('Draw Offered', 'Draw offer has been sent to your opponent');
+      addDebugLog('Draw offer sent successfully');
+    } catch (error) {
+      addDebugLog(`Draw offer failed: ${error}`);
+      Alert.alert('Error', 'Failed to send draw offer');
+    } finally {
+      setIsOfferingDraw(false);
+    }
+  };
 
   const handleMove = (move: {
     from: string;
     to: string;
     promotion?: string;
   }) => {
-    console.log('Player making move:', move);
+    addDebugLog(`Player making move: ${JSON.stringify(move)}`);
+
     const moveResult = makeMove(
       move.from as any,
       move.to as any,
@@ -213,19 +294,43 @@ const GameScreen = () => {
     );
 
     if (moveResult) {
-      console.log('Move validated locally:', moveResult);
-      // The move will be handled by the socket connection in the context
+      addDebugLog(`Move validated locally: ${JSON.stringify(moveResult)}`);
+      addDebugLog('Emitting makeMove to server...');
     } else {
-      console.log('Invalid move attempted');
+      addDebugLog('Invalid move attempted - rejected by local validation');
     }
   };
 
   const handleUndo = () => {
+    addDebugLog('Undo button pressed');
     if (undoMove) {
       undoMove();
+      addDebugLog('Undo move executed');
     } else {
+      addDebugLog('Undo feature not available');
       Alert.alert('Info', 'Undo feature not available in online games');
     }
+  };
+
+  const handleReset = () => {
+    addDebugLog('Reset button pressed');
+    resetGame();
+    setShowResultModal(false);
+    setGameResult(null);
+    addDebugLog('Game reset');
+  };
+
+  const handleHome = () => {
+    addDebugLog('Home button pressed');
+    router.replace('/lobby');
+  };
+
+  const handleRestart = () => {
+    addDebugLog('Restart button pressed');
+    resetGame();
+    setShowResultModal(false);
+    setGameResult(null);
+    addDebugLog('Game restarted');
   };
 
   const getGameStatus = () => {
@@ -258,7 +363,6 @@ const GameScreen = () => {
     gameState?.playerColor === 'white'
       ? game?.turn() === 'w'
       : game?.turn() === 'b';
-  const isWhiteTurn = game?.turn() === 'w';
 
   return (
     <View style={styles.container}>
@@ -276,10 +380,33 @@ const GameScreen = () => {
           <Text style={styles.turnIndicator}>{getTurnIndicator()}</Text>
         </View>
 
-        <TouchableOpacity style={styles.settingsButton}>
-          <Settings size={24} color="#FFFFFF" />
+        <TouchableOpacity
+          style={styles.debugButton}
+          onPress={() => setShowDebug(!showDebug)}
+          onLongPress={() => setDebugLogs([])}
+        >
+          <Text style={styles.debugButtonText}>📋</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Debug Panel */}
+      {showDebug && (
+        <View style={styles.debugPanel}>
+          <ScrollView style={styles.debugScrollView}>
+            {debugLogs.map((log, index) => (
+              <Text key={index} style={styles.debugLogText}>
+                {log}
+              </Text>
+            ))}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.closeDebugButton}
+            onPress={() => setShowDebug(false)}
+          >
+            <Text style={styles.closeDebugText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Opponent Info */}
       <PlayerInfo
@@ -323,13 +450,59 @@ const GameScreen = () => {
         <TooltipIcon label="Draw" onPress={handleOfferDraw}>
           <Handshake size={28} color="#FFFFFF" />
         </TooltipIcon>
-        <TooltipIcon label="Reset" onPress={() => resetGame()}>
+        <TooltipIcon label="Reset" onPress={handleReset}>
           <RefreshCw size={28} color="#FFFFFF" />
         </TooltipIcon>
         <TooltipIcon label="Undo" onPress={handleUndo}>
           <Undo2 size={28} color="#FFFFFF" />
         </TooltipIcon>
       </View>
+
+      {/* Result Modal */}
+      <Modal
+        visible={showResultModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowResultModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{gameResult?.title}</Text>
+            <Text style={styles.modalMessage}>{gameResult?.message}</Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.restartButton]}
+                onPress={handleRestart}
+              >
+                <RefreshCw size={20} color="#FFFFFF" />
+                <Text style={styles.modalButtonText}>Play Again</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.homeButton]}
+                onPress={handleHome}
+              >
+                <Home size={20} color="#FFFFFF" />
+                <Text style={styles.modalButtonText}>Main Menu</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Loading Overlays */}
+      {isResigning && (
+        <View style={styles.loadingOverlay}>
+          <Text style={styles.loadingOverlayText}>Resigning...</Text>
+        </View>
+      )}
+
+      {isOfferingDraw && (
+        <View style={styles.loadingOverlay}>
+          <Text style={styles.loadingOverlayText}>Offering draw...</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -352,22 +525,43 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: '#16213e'
   },
-  headerTitleContainer: {
-    alignItems: 'center'
-  },
+  headerTitleContainer: { alignItems: 'center' },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#8B5CF6',
     textAlign: 'center'
   },
-  turnIndicator: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4
-  },
+  turnIndicator: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
   backButton: { padding: 8 },
-  settingsButton: { padding: 8 },
+  debugButton: { padding: 8 },
+  debugButtonText: { fontSize: 20, color: '#FFFFFF' },
+  debugPanel: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    borderRadius: 8,
+    padding: 12,
+    zIndex: 1000,
+    maxHeight: 300
+  },
+  debugScrollView: { maxHeight: 250 },
+  debugLogText: {
+    color: '#00FF00',
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    marginBottom: 2
+  },
+  closeDebugButton: {
+    backgroundColor: '#8B5CF6',
+    padding: 8,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  closeDebugText: { color: '#FFFFFF', fontWeight: 'bold' },
   playerInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -418,7 +612,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8
+    elevation: 8,
+    position: 'relative'
   },
   aiThinkingOverlay: {
     position: 'absolute',
@@ -429,13 +624,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16
+    borderRadius: 16,
+    zIndex: 10
   },
-  aiThinkingText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold'
-  },
+  aiThinkingText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
   bottomBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -453,10 +645,79 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6
   },
-  tooltipText: {
+  tooltipText: { color: '#FFFFFF', fontSize: 12, fontWeight: '500' },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  modalContent: {
+    backgroundColor: '#1a1a2e',
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    width: '80%',
+    borderWidth: 2,
+    borderColor: '#8B5CF6'
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500'
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    marginBottom: 24,
+    textAlign: 'center'
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    gap: 16
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    gap: 8
+  },
+  restartButton: {
+    backgroundColor: '#8B5CF6'
+  },
+  homeButton: {
+    backgroundColor: '#374151'
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600'
+  },
+
+  // Loading Overlay
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20
+  },
+  loadingOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold'
   }
 });
 

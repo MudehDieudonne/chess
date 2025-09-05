@@ -58,7 +58,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const response = await fetch(
-        `http://localhost:3000/analytics/${userId}/profile`,
+        `http://localhost:3000/api/analytics/${userId}/profile`,
         {
           method: 'GET',
           headers: {

@@ -222,23 +222,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
 };
 
 // Helper function to get Unicode chess symbols
-const getPieceSymbol = (piece: string) => {
-  const symbols: { [key: string]: string } = {
-    wk: '♔',
-    wq: '♕',
-    wr: '♖',
-    wb: '♗',
-    wn: '♘',
-    wp: '♙',
-    bk: '♚',
-    bq: '♛',
-    br: '♜',
-    bb: '♝',
-    bn: '♞',
-    bp: '♟'
-  };
-  return symbols[piece] || '';
-};
 
 const styles = StyleSheet.create({
   container: {

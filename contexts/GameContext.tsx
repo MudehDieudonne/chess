@@ -5,7 +5,8 @@ import React, {
   ReactNode,
   useContext,
   useEffect,
-  useState
+  useState,
+  useRef
 } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
@@ -78,7 +79,6 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const useGame = (): GameContextType => {
   const context = useContext(GameContext);
   if (!context) throw new Error('useGame must be used within GameProvider');
-  if (!context) throw new Error('useGame must be used within GameProvider');
   return context;
 };
 
@@ -102,7 +102,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [lastAnimatedMove, setLastAnimatedMove] = useState<Move | null>(null);
 
-  // Frontend becomes backend-driven; legal moves not computed locally
+  // Store socket reference
+  const socketRef = useRef<any>(null);
+  const pendingAIMove = useRef<Move | null>(null);
+
   const legalMoves: string[] = [];
 
   useEffect(() => {
@@ -144,12 +147,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       setIsAITurn(!isPlayerTurn);
 
       if (!isPlayerTurn && !isAIThinking) {
-        // AI's turn to move
         setIsAIThinking(true);
         console.log('AI thinking...');
 
-        // The actual AI move should come from socket event
-        // This timeout is just a fallback
         const timeout = setTimeout(() => {
           if (!game.isGameOver()) {
             console.log('AI should make a move via socket');
@@ -166,16 +166,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     console.log('[CTX] updateGameAndState:', {
       from: move.from,
       to: move.to,
-      san: move.san,
-      fenAfter: move.fenAfter
+      san: move.san
     });
     console.log('[CTX] before apply: game.fen()', game.fen());
 
     try {
-      // Create a copy of the CURRENT game state
       const newGame = new Chess(game.fen());
-
-      // Apply the move to the copy
       const moveResult = newGame.move({
         from: move.from,
         to: move.to,
@@ -202,7 +198,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
           return next;
         });
         console.log('[CTX] after apply: newGame.fen()', newGame.fen());
-
         return move;
       } else {
         console.log('[CTX] Invalid move attempted:', move);
@@ -219,7 +214,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     try {
       const newGame = new Chess(fen);
       setGame(newGame);
-      setLastAnimatedMove(null);
 
       setGameState(prev =>
         prev
@@ -251,7 +245,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const addMove = (move: Move): Move | null => {
     console.log('[CTX] addMove called with:', move);
 
-    // FIX: Handle FEN mismatch by using the move's FEN directly
     if (move.fenAfter && move.fenAfter !== game.fen()) {
       console.log(
         '[CTX] FEN mismatch! Using move FEN instead of current game state'
@@ -259,16 +252,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       console.log('[CTX] Current game FEN:', game.fen());
       console.log('[CTX] Move FEN:', move.fenAfter);
 
-      // Just apply the FEN directly
-      console.log(
-        '[CTX] Applying final FEN from server (bypassing move validation)'
-      );
-      applyServerFen(move.fenAfter, 'addMove-direct');
-
-      // Also update last move for potential animation
-      setLastMove(move);
+      pendingAIMove.current = move;
+      applyServerFen(move.fenAfter, 'addMove-fallback');
       setLastAnimatedMove(move);
-
       return move;
     }
 
@@ -300,38 +286,28 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const connectToSocket = async (gameId: string) => {
     console.log('[CTX] connectToSocket called for game:', gameId);
 
-    // Check if we're already connected to this game
     if (window.__currentSocketGameId === gameId) {
       console.log('[CTX] Already connected to this game, skipping');
-      return;
+      return socketRef.current;
     }
 
     window.__currentSocketGameId = gameId;
 
-    if (!user?.id) {
-      throw new Error('User ID is required for socket connection');
-    }
+    if (!user?.id) throw new Error('User ID is required for socket connection');
 
     const token = await getAccessToken();
-
-    if (!token) {
+    if (!token)
       throw new Error('Access token is required for socket connection');
-    }
 
-    const socket = connectSocket({
-      gameId,
-      userId: user.id,
-      token: token
-    });
+    const socket = connectSocket({ gameId, userId: user.id, token });
+    socketRef.current = socket;
 
     socket.off('aiMoveMade');
     socket.on('aiMoveMade', (data: { move: Move; currentFen?: string }) => {
       console.log('[CTX] aiMoveMade received:', data);
 
-      // FIX: Use the FEN from the AI move directly
       if (data.currentFen) {
         console.log('[CTX] Using FEN from aiMoveMade:', data.currentFen);
-
         const aiMove: Move = {
           from: data.move.from,
           to: data.move.to,
@@ -341,12 +317,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
           promotion: data.move.promotion
         };
 
-        // Just apply the FEN directly (the move already happened on server)
-        console.log('[CTX] Applying final FEN from server');
-        applyServerFen(data.currentFen, 'aiMoveMade-direct');
-
-        // Also update last move for potential animation
-        setLastMove(aiMove);
+        pendingAIMove.current = aiMove;
+        applyServerFen(data.currentFen, 'aiMoveMade');
         setLastAnimatedMove(aiMove);
       } else {
         console.log(
@@ -360,18 +332,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
           timestamp: Date.now(),
           promotion: data.move.promotion
         };
-
-        const appliedMove = addMove(aiMove);
-        if (!appliedMove) {
-          console.log('[CTX] AI move failed without FEN');
-        }
+        addMove(aiMove);
       }
 
       setIsAITurn(false);
       setIsAIThinking(false);
     });
 
-    // Backend-driven game updates
     socket.off('gameUpdate');
     socket.on(
       'gameUpdate',
@@ -382,13 +349,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         status: string;
       }) => {
         console.log('CTX gameUpdate ->', payload);
-
-        // FIX: Force update the game state regardless of current FEN
-        console.log('[CTX] Force updating game state from server');
-        applyServerFen(payload.fen, 'gameUpdate-force');
-
-        // Any gameUpdate means AI finished thinking (only if it was AI turn)
-        setIsAIThinking(prev => (prev ? false : prev));
+        applyServerFen(payload.fen, 'gameUpdate');
+        setIsAIThinking(false);
       }
     );
 
@@ -396,41 +358,37 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       console.log('AI started thinking');
       setIsAIThinking(true);
     });
+
+    return socket;
   };
 
   const createGame = async (vsAI = false): Promise<string> => {
     setLoading(true);
     try {
-      if (!user?.id) {
-        throw new Error('User must be logged in to create a game');
-      }
+      if (!user?.id) throw new Error('User must be logged in to create a game');
 
-      // Create game via backend API
-      const response = await fetch('http://localhost:3000/api/games/start', {
+      // Use relative URL or environment variable
+      const API_BASE = process.env.EXPO_PUBLIC_API_URL || '';
+      const response = await fetch(`${API_BASE}/games/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${await getAccessToken()}`
         },
         body: JSON.stringify({
-          vsAI: vsAI,
+          vsAI,
           userColor: 'white',
           aiDifficulty: 'medium'
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create game on server');
-      }
+      if (!response.ok) throw new Error('Failed to create game on server');
 
       const gameData = await response.json();
       console.log('Game creation response:', gameData);
       const gameId =
         gameData.data?._id || gameData.data?.id || gameData._id || gameData.id;
-
-      if (!gameId) {
-        throw new Error('No game ID returned from server');
-      }
+      if (!gameId) throw new Error('No game ID returned from server');
 
       const newGame = new Chess();
       const newGameState: GameState = {
@@ -445,6 +403,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         isDraw: false,
         isCheck: false
       };
+
       setGame(newGame);
       setGameState(newGameState);
       setLastMove(null);
@@ -465,15 +424,29 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
-  const makeMove = (
-    from: Square,
-    to: Square,
-    promotion?: string
-  ): { from: string; to: string; promotion?: string } | false => {
-    // Do not apply locally trustx backend
-    if (gameState?.opponent === 'AI') {
-      setIsAIThinking(true);
+  const makeMove = (from: Square, to: Square, promotion?: string) => {
+    if (gameState?.opponent === 'AI') setIsAIThinking(true);
+
+    // Emit move to server through socket
+    if (socketRef.current && gameState?.id) {
+      console.log('[CTX] Emitting makeMove to server:', {
+        from,
+        to,
+        promotion
+      });
+
+      // FIX: Match backend expectation - use "dto" instead of "move"
+      socketRef.current.emit('makeMove', {
+        gameId: gameState.id,
+        dto: {
+          // Changed from "move" to "dto"
+          from: from,
+          to: to,
+          promotion: promotion
+        }
+      });
     }
+
     return { from, to, promotion };
   };
 
@@ -501,14 +474,33 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
   const selectSquare = (square: Square | null) => setSelectedSquare(square);
 
+  const resetGame = () => {
+    const newGame = new Chess();
+    setGame(newGame);
+    setGameState(prev =>
+      prev
+        ? {
+            ...prev,
+            fen: newGame.fen(),
+            moves: [],
+            status: 'active',
+            result: undefined
+          }
+        : null
+    );
+    setLastMove(null);
+    setSelectedSquare(null);
+    setAssistantHint(null);
+    setTimeLeft({ white: 600, black: 600 });
+    setIsAITurn(false);
+    setIsAIThinking(false);
+  };
+
   const loadGame = async (gameId: string): Promise<boolean> => {
     setLoading(true);
     try {
-      if (!user?.id) {
-        throw new Error('User must be logged in to load a game');
-      }
+      if (!user?.id) throw new Error('User must be logged in to load a game');
 
-      // Initialize minimal state; backend will drive updates
       setGame(new Chess());
       setGameState(
         prev =>
@@ -537,32 +529,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const resetGame = (gameId?: string) => {
-    const idToReset = gameId ?? gameState?.id;
-    if (!idToReset || !socket) return;
-
-    // Émet l’événement resetBoard au backend
-    socket.emit('resetBoard', { gameId: idToReset });
-
-    // Réinitialisation locale immédiate pour fluidité UX
-    const newGame = new Chess();
-    setGame(newGame);
-    setGameState(prev =>
-      prev
-        ? {
-            ...prev,
-            fen: newGame.fen(),
-            moves: [],
-            status: 'active',
-            result: undefined
-          }
-        : null
-    );
-    setLastMove(null);
-    setSelectedSquare(null);
-    setAssistantHint(null);
   };
 
   const value: GameContextType = {
