@@ -1,8 +1,9 @@
+import BottomBar from '@/components/BottomBar';
 import ChessBoard from '@/components/ChessBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Bot, ChevronLeft, Crown, Flag, Handshake, RefreshCw, Settings, Undo2, User } from 'lucide-react-native';
+import { Bot, ChevronLeft, Crown, Settings, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
@@ -166,12 +167,11 @@ const GameScreen = () => {
       <PlayerInfo name="ChessMaster" rating={1654} time={whiteTime} isActive={isWhiteTurn} />
 
       {/* Bottom Bar */}
-      <View style={styles.bottomBar}>
-        <TooltipIcon label="Resign" onPress={handleResign}><Flag size={28} color="#dc2626" /></TooltipIcon>
-        <TooltipIcon label="Draw" onPress={handleOfferDraw}><Handshake size={28} color="#FFFFFF" /></TooltipIcon>
-        <TooltipIcon label="Reset" onPress={() => resetGame()}><RefreshCw size={28} color="#FFFFFF" /></TooltipIcon>
-        <TooltipIcon label="Undo" onPress={undoMove}><Undo2 size={28} color="#FFFFFF" /></TooltipIcon>
-      </View>
+      <BottomBar 
+      onResign={handleResign}
+      onOfferDraw={handleOfferDraw}
+      onReset={resetGame}
+      onUndo={undoMove}/>
     </View>
   );
 };
