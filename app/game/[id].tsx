@@ -1,41 +1,14 @@
+import BottomBar from '@/components/BottomBar';
 import ChessBoard from '@/components/ChessBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  ArrowLeft,
-  Bot,
-  Crown,
-  Flag,
-  Handshake,
-  History,
-  Lightbulb,
-  RefreshCw,
-  Undo2,
-  User
-} from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
-import {
-  Alert,
-  Animated,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View
-} from 'react-native';
+import { Bot, ChevronLeft, Crown, Settings, User } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 // --- Tooltip avec animation ---
-const TooltipIcon = ({
-  label,
-  onPress,
-  children
-}: {
-  label: string;
-  onPress: () => void;
-  children: React.ReactNode;
-}) => {
+const TooltipIcon = ({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) => {
   const [visible, setVisible] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(5)).current;
@@ -43,55 +16,59 @@ const TooltipIcon = ({
   const showTooltip = () => {
     setVisible(true);
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true
-      })
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true })
     ]).start();
   };
 
   const hideTooltip = () => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true
-      }),
-      Animated.timing(translateY, {
-        toValue: 5,
-        duration: 150,
-        useNativeDriver: true
-      })
+      Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 5, duration: 150, useNativeDriver: true })
     ]).start(() => setVisible(false));
   };
 
   return (
     <View style={{ alignItems: 'center' }}>
       {visible && (
-        <Animated.View
-          style={[
-            styles.tooltip,
-            { opacity, transform: [{ translateY }] }
-          ]}
-        >
+        <Animated.View style={[styles.tooltip, { opacity, transform: [{ translateY }] }]}>
           <Text style={styles.tooltipText}>{label}</Text>
         </Animated.View>
       )}
-      <TouchableOpacity
-        onPress={onPress}
-        onPressIn={showTooltip}
-        onPressOut={hideTooltip}
-        onMouseEnter={showTooltip}
-        onMouseLeave={hideTooltip}
-      >
+      <TouchableOpacity onPress={onPress} onPressIn={showTooltip} onPressOut={hideTooltip} onMouseEnter={showTooltip} onMouseLeave={hideTooltip}>
         {children}
       </TouchableOpacity>
+    </View>
+  );
+};
+
+// Timer Component
+const Timer = ({ time, isActive }: { time: number; isActive: boolean }) => {
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <View style={[styles.timer, isActive && styles.activeTimer]}>
+      <Text style={[styles.timerText, isActive && styles.activeTimerText]}>{formatTime(time)}</Text>
+    </View>
+  );
+};
+
+// Player Info Component
+const PlayerInfo = ({ name, rating, isOpponent, time, isActive }: { name: string; rating: number; isOpponent?: boolean; time: number; isActive: boolean }) => {
+  return (
+    <View style={[styles.playerInfo, isOpponent && styles.opponentInfo]}>
+      <View style={styles.playerDetails}>
+        <View style={styles.playerIcon}>{isOpponent ? <Bot size={16} color="#FFFFFF" /> : <User size={16} color="#FFFFFF" />}</View>
+        <View>
+          <Text style={styles.playerName}>{name}</Text>
+          <Text style={styles.playerRating}>Rating: {rating}</Text>
+        </View>
+      </View>
+      <Timer time={time} isActive={isActive} />
     </View>
   );
 };
@@ -101,19 +78,32 @@ const GameScreen = () => {
   const router = useRouter();
   const { user } = useAuth();
   const { gameState, loadGame, game, resetGame, undoMove } = useGame();
-  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
-    null
-  );
+  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [whiteTime, setWhiteTime] = useState(600); // 10 minutes
+  const [blackTime, setBlackTime] = useState(645); // 10:45
+  const [currentTurn, setCurrentTurn] = useState<'w' | 'b'>('w');
+
   const { width, height } = useWindowDimensions();
-  const boardSize = Math.min(width * 0.9, height * 0.6, 500);
+  const boardSize = Math.min(width * 0.95, height * 0.5, 400);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (game && !game.isGameOver()) {
+        const turn = game.turn();
+        setCurrentTurn(turn);
+        if (turn === 'w') setWhiteTime(prev => Math.max(0, prev - 1));
+        else setBlackTime(prev => Math.max(0, prev - 1));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [game]);
 
   React.useEffect(() => {
     const initializeGame = async () => {
-      if (id && !gameState) {
-        await loadGame(id as string);
-      }
+      if (id && !gameState) await loadGame(id as string);
       setLoading(false);
     };
     initializeGame();
@@ -122,24 +112,11 @@ const GameScreen = () => {
   const handleResign = () => {
     Alert.alert('Resign Game', 'Are you sure you want to resign?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Resign',
-        style: 'destructive',
-        onPress: () => {
-          resetGame();
-          router.replace('/lobby');
-        }
-      }
+      { text: 'Resign', style: 'destructive', onPress: () => { resetGame(); router.replace('/lobby'); } }
     ]);
   };
 
-  const handleOfferDraw = () => {
-    Alert.alert('Draw Offer', 'Draw offer sent to opponent');
-  };
-
-  const getCurrentTurn = () => {
-    return game?.turn() === 'w' ? 'White' : 'Black';
-  };
+  const handleOfferDraw = () => Alert.alert('Draw Offer', 'Draw offer sent to opponent');
 
   const getGameStatus = () => {
     if (!game) return 'Loading...';
@@ -147,159 +124,81 @@ const GameScreen = () => {
     if (game.isCheck()) return 'Check';
     if (game.isDraw()) return 'Draw';
     if (game.isStalemate()) return 'Stalemate';
-    return 'Active';
+    return 'Ranked Match';
   };
 
   if (loading || !gameState) {
     return (
       <View style={styles.loadingContainer}>
-        <Crown size={48} color="#228B22" />
+        <Crown size={48} color="#8B5CF6" />
         <Text style={styles.loadingText}>Loading game...</Text>
       </View>
     );
   }
 
+  const isWhiteTurn = currentTurn === 'w';
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push('/lobby')}
-        >
-          <ArrowLeft size={24} color="#2D5016" />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/lobby')}>
+          <ChevronLeft size={24} color="#FFFFFF" /> {/* <-- icône modifiée */}
         </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
-          <View style={styles.opponentInfo}>
-            {gameState.opponent?.includes('AI') ||
-            gameState.opponent?.includes('Bot') ? (
-              <Bot size={16} color="#2D5016" />
-            ) : (
-              <User size={16} color="#2D5016" />
-            )}
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              vs {gameState.opponent}
-            </Text>
-          </View>
-          <Text style={styles.headerSubtitle}>
-            {getCurrentTurn()}'s turn • {getGameStatus()}
-          </Text>
-        </View>
+        <Text style={styles.headerTitle}>{getGameStatus()}</Text>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setActiveTab('history')}
-          >
-            <History size={22} color="#2D5016" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setActiveTab('assistant')}
-          >
-            <Lightbulb size={22} color="#2D5016" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.settingsButton}>
+          <Settings size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
+
+      {/* Opponent Info */}
+      <PlayerInfo name="GrandMaster99" rating={1847} isOpponent={true} time={blackTime} isActive={!isWhiteTurn} />
 
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <View
-          style={[
-            styles.boardContainer,
-            { width: boardSize, height: boardSize }
-          ]}
-        >
+        <View style={[styles.boardContainer, { width: boardSize, height: boardSize }]}>
           <ChessBoard />
         </View>
       </View>
 
-      {/* Bottom Bar avec Tooltips animés */}
-      <View style={styles.bottomBar}>
-        <TooltipIcon label="Resign" onPress={handleResign}>
-          <Flag size={28} color="#dc2626" />
-        </TooltipIcon>
+      {/* Player Info */}
+      <PlayerInfo name="ChessMaster" rating={1654} time={whiteTime} isActive={isWhiteTurn} />
 
-        <TooltipIcon label="Draw" onPress={handleOfferDraw}>
-          <Handshake size={28} color="#228B22" />
-        </TooltipIcon>
-
-        <TooltipIcon label="Reset" onPress={() => resetGame()}>
-          <RefreshCw size={28} color="#2D5016" />
-        </TooltipIcon>
-
-        <TooltipIcon label="Undo" onPress={undoMove}>
-          <Undo2 size={28} color="#2D5016" />
-        </TooltipIcon>
-      </View>
+      {/* Bottom Bar */}
+      <BottomBar 
+      onResign={handleResign}
+      onOfferDraw={handleOfferDraw}
+      onReset={resetGame}
+      onUndo={undoMove}/>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa'
-  },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8',
-    minHeight: 60
-  },
+  container: { flex: 1, backgroundColor: '#1a1a2e' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#FFFFFF' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 50 : 30, paddingBottom: 16, backgroundColor: '#16213e' },
   backButton: { padding: 8 },
-  headerCenter: { flex: 1, alignItems: 'center', marginHorizontal: 12 },
-  opponentInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: '#2D5016' },
-  headerSubtitle: { fontSize: 12, color: '#666', marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: 12 },
-  headerIcon: { padding: 8 },
-  mainContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  boardContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 80,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 14,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e8e8e8'
-  },
-  tooltip: {
-    position: 'absolute',
-    bottom: 30
-  },
-  tooltipText: {
-    color: '#2D5016',
-    fontSize: 13,
-    fontWeight: '500'
-  }
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#8B5CF6', textAlign: 'center' },
+  settingsButton: { padding: 8 },
+  playerInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#16213e', marginHorizontal: 16, borderRadius: 12, marginVertical: 8 },
+  opponentInfo: { marginTop: 16 },
+  playerDetails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  playerIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#8B5CF6', justifyContent: 'center', alignItems: 'center' },
+  playerName: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  playerRating: { fontSize: 12, color: '#9CA3AF' },
+  timer: { backgroundColor: '#374151', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, minWidth: 80, alignItems: 'center' },
+  activeTimer: { backgroundColor: '#8B5CF6' },
+  timerText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  activeTimerText: { color: '#FFFFFF' },
+  mainContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 20 },
+  boardContainer: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#16213e', borderRadius: 16, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  bottomBar: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 30, paddingHorizontal: 20, backgroundColor: '#16213e', borderTopWidth: 1, borderTopColor: '#374151' },
+  tooltip: { position: 'absolute', bottom: 40, backgroundColor: '#374151', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  tooltipText: { color: '#FFFFFF', fontSize: 12, fontWeight: '500' }
 });
 
 export default GameScreen;
