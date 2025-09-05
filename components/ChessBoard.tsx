@@ -1,89 +1,199 @@
 import { useGame } from '@/contexts/GameContext';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, Animated, Easing } from 'react-native';
 import Chessboard from 'react-native-chessboard';
+import { Chess } from 'chess.js';
 
 interface ChessBoardProps {
+  onMove: (move: { from: string; to: string; promotion?: string }) => void;
   className?: string;
 }
 
-const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
+const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   const {
     game,
     gameState,
     selectedSquare,
     legalMoves,
-    makeMove,
-    selectSquare
+    selectSquare,
+    isAIThinking,
+    lastAnimatedMove
   } = useGame();
 
-  const fen = game?.fen() || 'start';
+  const animationRef = useRef(new Animated.Value(0)).current;
+  const [showAnimation, setShowAnimation] = React.useState(false);
+  const [animationData, setAnimationData] = React.useState<{
+    from: string;
+    to: string;
+    piece: string;
+  } | null>(null);
 
-  const onSquarePress = (square: string) => {
-    if (selectedSquare) {
-      if (selectedSquare === square) {
-        selectSquare(null);
-      } else if (legalMoves.includes(square)) {
-        makeMove(selectedSquare, square);
-      } else {
-        selectSquare(square);
+  // Prefer server-driven fen from gameState to avoid desync
+  const fen = gameState?.fen || game?.fen() || 'start';
+
+  React.useEffect(() => {
+    console.log('[Board] fen updated ->', fen);
+  }, [fen]);
+
+  React.useEffect(() => {
+    console.log('[Board] isAIThinking ->', isAIThinking);
+  }, [isAIThinking]);
+
+  // Handle AI move animations
+  useEffect(() => {
+    if (lastAnimatedMove) {
+      console.log('[Board] Animating move:', lastAnimatedMove);
+
+      try {
+        // Get the piece that's being moved from the FEN
+        const board = new Chess(fen);
+        const piece = board.get(lastAnimatedMove.from);
+
+        if (piece) {
+          setAnimationData({
+            from: lastAnimatedMove.from,
+            to: lastAnimatedMove.to,
+            piece: piece.type + piece.color
+          });
+
+          setShowAnimation(true);
+          animationRef.setValue(0);
+
+          Animated.timing(animationRef, {
+            toValue: 1,
+            duration: 300,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true
+          }).start(() => {
+            setTimeout(() => {
+              setShowAnimation(false);
+              setAnimationData(null);
+            }, 100);
+          });
+        }
+      } catch (error) {
+        console.log('[Board] Error setting up animation:', error);
       }
-    } else {
-      selectSquare(square);
     }
+  }, [lastAnimatedMove]);
+
+  const onChessMove = (info: any) => {
+    // Call the onMove prop with the move data
+    onMove({
+      from: info.move.from,
+      to: info.move.to,
+      promotion: info.move.promotion
+    });
   };
 
   const getHighlightedSquares = () => {
     const highlights: { [square: string]: string } = {};
-
     if (selectedSquare) {
-      highlights[selectedSquare] = '#8B5CF6';
+      // Selected square highlight (gold)
+      highlights[selectedSquare] = '#FFD700';
+
+      // Legal moves highlight (semi-transparent purple)
       legalMoves.forEach(move => {
         highlights[move] = 'rgba(139, 92, 246, 0.4)';
       });
     }
-
     return highlights;
   };
 
-  // Fonction pour personnaliser les pièces
-  const customPieceStyle = (piece: string) => {
-    // Pions noirs et autres pièces noires
-    if (piece.toLowerCase() === piece) {
-      return {
-        color: '#A78BFA', // violet
-        fontWeight: 'bold',
-      };
-    }
-    // Pièces blanches normales (violet clair)
+  // Calculate position for animated piece
+  const getSquarePosition = (square: string) => {
+    const file = square.charCodeAt(0) - 97; // a=0, b=1, etc.
+    const rank = 8 - parseInt(square[1]); // 1=7, 2=6, etc.
+
+    const squareSize = 350 / 8;
     return {
-      color: '#F3E8FF',
-      fontWeight: 'bold',
+      left: file * squareSize,
+      top: rank * squareSize,
+      width: squareSize,
+      height: squareSize
     };
   };
 
   return (
     <View style={styles.container}>
       <Chessboard
+        key={fen}
         fen={fen}
-        onSquarePress={onSquarePress}
-        highlightedSquares={getHighlightedSquares()}
-        boardStyle={styles.board}
+        onMove={onChessMove}
+        gestureEnabled={true}
+        withLetters={true}
+        withNumbers={true}
+        boardSize={350}
+        durations={{ move: 300 }}
         colors={{
-          white: "#808080",
-          black: "#1E1B4B", // case noire foncée
-          lastMoveHighlight: "#A78BFA",
-          checkmateHighlight: "#FF0000",
+          white: '#808080',
+          black: '#000000',
+          lastMoveHighlight: '#8B5CF6',
+          checkmateHighlight: '#FF0000'
         }}
         showCoordinates={true}
         showLegalMoves={false}
-        pieceStyle={customPieceStyle}
+        pieceStyle={{
+          fontWeight: 'bold'
+        }}
         coordinatesStyle={{
           fontSize: 12,
           color: '#C4B5FD',
           fontWeight: '500'
         }}
       />
+
+      {/* Animated piece overlay for AI moves */}
+      {showAnimation && animationData && (
+        <Animated.View
+          style={[
+            styles.animatedPiece,
+            {
+              transform: [
+                {
+                  translateX: animationRef.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [
+                      getSquarePosition(animationData.from).left,
+                      getSquarePosition(animationData.to).left
+                    ]
+                  })
+                },
+                {
+                  translateY: animationRef.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [
+                      getSquarePosition(animationData.from).top,
+                      getSquarePosition(animationData.to).top
+                    ]
+                  })
+                }
+              ],
+              opacity: animationRef.interpolate({
+                inputRange: [0, 0.1, 0.9, 1],
+                outputRange: [0, 1, 1, 0]
+              })
+            }
+          ]}
+        >
+          <Text
+            style={[
+              styles.pieceText,
+              animationData.piece.startsWith('w')
+                ? styles.whitePiece
+                : styles.blackPiece
+            ]}
+          >
+            {getPieceSymbol(animationData.piece)}
+          </Text>
+        </Animated.View>
+      )}
+
+      {isAIThinking && (
+        <View style={styles.aiOverlay}>
+          <Text style={styles.aiOverlayText}>AI is thinking...</Text>
+        </View>
+      )}
 
       {game?.isGameOver() && (
         <View style={styles.gameOverlay}>
@@ -98,10 +208,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
                     : 'Game Over'}
             </Text>
             <Text style={styles.gameOverlaySubtext}>
-              {game.isCheckmate() 
-                ? game.turn() === 'w' ? 'Black Wins!' : 'White Wins!'
-                : 'Match Ended'
-              }
+              {game.isCheckmate()
+                ? game.turn() === 'w'
+                  ? 'Black Wins!'
+                  : 'White Wins!'
+                : 'Match Ended'}
             </Text>
           </View>
         </View>
@@ -110,6 +221,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
   );
 };
 
+// Helper function to get Unicode chess symbols
+
 const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
@@ -117,12 +230,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#2D3748',
     borderRadius: 12,
-    padding: 8,
+    padding: 8
   },
-  board: {
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#4A5568',
+  aiOverlay: {
+    position: 'absolute',
+    top: '45%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    backgroundColor: 'transparent'
+  },
+  aiOverlayText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF8C00',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3
   },
   gameOverlay: {
     position: 'absolute',
@@ -146,20 +270,43 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    elevation: 10,
+    elevation: 10
   },
   gameOverlayTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#8B5CF6',
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   gameOverlaySubtext: {
     fontSize: 16,
     color: '#FFFFFF',
     textAlign: 'center',
-    opacity: 0.9,
+    opacity: 0.9
+  },
+  animatedPiece: {
+    position: 'absolute',
+    width: 43.75, // 350 / 8
+    height: 43.75,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10
+  },
+  pieceText: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2
+  },
+  whitePiece: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)'
+  },
+  blackPiece: {
+    color: '#000000',
+    textShadowColor: 'rgba(255, 255, 255, 0.3)'
   }
 });
 
