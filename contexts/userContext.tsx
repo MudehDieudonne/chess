@@ -38,7 +38,7 @@ interface UserContextType {
   refreshUserStats: () => Promise<void>;
   updateDisplayName: (newName: string) => Promise<boolean>;
 }
-
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -58,7 +58,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const response = await fetch(
-        `http://localhost:3000/api/analytics/${userId}/profile`,
+        `${API_URL}/analytics/${userId}/profile`,
         {
           method: 'GET',
           headers: {
@@ -73,6 +73,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const backendData = await response.json();
+      console.log(backendData);
 
       // Transform backend data to match our frontend structure
       const stats: UserStats = {
@@ -106,7 +107,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error('Authentication required');
       }
 
-      const response = await fetch(`http://localhost:3000/user/profile`, {
+      const response = await fetch(`${API_URL}/user/profile`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,

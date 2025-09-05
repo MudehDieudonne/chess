@@ -1,7 +1,10 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
 import React, { useState } from 'react';
 import {
+  Alert,
   Image,
   SafeAreaView,
   StatusBar,
@@ -47,33 +50,41 @@ const ChessPiece: React.FC<ChessPieceProps> = ({ piece, isSelected, onPress }) =
   );
 };
 
-interface ColorOptionProps {
-  color: string;
-  isSelected: boolean;
-  onPress: () => void;
-}
 
-const ColorOption: React.FC<ColorOptionProps> = ({ color, isSelected, onPress }) => {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.colorButton,
-        { backgroundColor: color },
-        isSelected && styles.selectedColor,
-      ]}
-      onPress={onPress}
-    />
-  );
-};
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const CreateProfileScreen = () => {
   const [selectedPiece, setSelectedPiece] = useState<'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn'>('king');
-  const [selectedColor, setSelectedColor] = useState('#FFFFFF');
   const [username, setUsername] = useState('');
+  const {user, getAccessToken} = useAuth()
   const navigation = useNavigation();
 
-  const pieces: ChessPieceProps['piece'][] = ['king', 'queen', 'rook']; // seules les images dispo
-  const colors = ['#FFFFFF', '#FF5722', '#4CAF50', '#2196F3', '#9C27B0', '#FFC107'];
+  const pieces: ChessPieceProps['piece'][] = ['king', 'queen', 'rook'];
+
+  const handleUpdateProfile = async () => {
+    console.log('In here')
+    try {
+      const userId = user?.id;
+      const token = await getAccessToken();
+
+        await axios.patch(
+        `${API_URL}/analytics/${userId}/profile`,
+        {
+          username,
+          avatarUrl: selectedPiece, // storing piece as avatar (could be image URL later)
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      Alert.alert('Success', 'Profile updated!');
+      navigation.goBack(); // return to previous screen
+    } catch (err: any) {
+      console.error(err.response?.data || err.message);
+      Alert.alert('Error', 'Could not update profile.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -121,21 +132,8 @@ const CreateProfileScreen = () => {
           />
         </View>
 
-        {/* Color Selection */}
-        {/* <Text style={styles.sectionTitle}>Preferred Color</Text>
-        <View style={styles.colorsRow}>
-          {colors.map((color, index) => (
-            <ColorOption
-              key={index}
-              color={color}
-              isSelected={selectedColor === color}
-              onPress={() => setSelectedColor(color)}
-            />
-          ))}
-        </View> */}
-
         {/* Create Button */}
-        <TouchableOpacity style={styles.createButton}>
+        <TouchableOpacity style={styles.createButton} onPress={handleUpdateProfile}>
           <Text style={styles.createButtonText}>Edit Profile</Text>
         </TouchableOpacity>
       </View>

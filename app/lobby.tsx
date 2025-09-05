@@ -1,8 +1,8 @@
 'use client';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUser } from '@/contexts/userContext';
 import { useGame } from '@/contexts/GameContext';
+import { useUser } from '@/contexts/userContext';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -16,6 +16,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+
+
 const Lobby = () => {
   const router = useRouter();
   const { user } = useAuth();
@@ -43,6 +45,7 @@ const Lobby = () => {
       router.push(`/invite/${inviteToken}`);
     } catch (error) {
       Alert.alert('Error', 'Failed to copy invite link.');
+      console.error(error)
     }
   };
   const handlePlayOffline = () => {
@@ -51,7 +54,7 @@ const Lobby = () => {
   // Get display name - prioritize backend username, then auth context, then fallback
   const displayName =
     userStats?.username ||
-    user?.displayName ||
+    user?.username ||
     user?.email?.split('@')[0] ||
     'ChessPlayer';
   return (
