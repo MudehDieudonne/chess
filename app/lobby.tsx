@@ -8,6 +8,11 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 
+// Constants
+import Colors from "@/constants/Colors"
+import Fonts from "@/constants/Fonts"
+import Spacing from "@/constants/Spacing"
+
 const Lobby = () => {
   const router = useRouter()
   const { user } = useAuth()
@@ -57,7 +62,7 @@ const Lobby = () => {
           {/* Play Online */}
           <TouchableOpacity onPress={() => router.push("/online")}>
             <LinearGradient
-              colors={["#8B5CF6", "#7C3AED", "#6D28D9"]}
+              colors={Colors.primaryButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.primaryButton}
@@ -68,7 +73,7 @@ const Lobby = () => {
 
           {/* Play vs AI */}
           <TouchableOpacity style={styles.aiButton} onPress={handlePlayVsAI} disabled={loading}>
-            {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.aiButtonText}>🤖 Play vs AI</Text>}
+            {loading ? <ActivityIndicator color={Colors.primaryText} /> : <Text style={styles.aiButtonText}>🤖 Play vs AI</Text>}
           </TouchableOpacity>
 
           {/* Play vs Friend */}
@@ -92,123 +97,123 @@ const Lobby = () => {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: "#0F0F23",
+    backgroundColor: Colors.background,
   },
   container: {
     flex: 1,
   },
   content: {
-    padding: 20,
-    gap: 16,
+    padding: Spacing.medium,
+    gap: Spacing.contentGap,
   },
   header: {
     alignItems: "center",
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === "ios" ? Spacing.headerTopIOS : Spacing.headerTopAndroid,
+    paddingBottom: Spacing.large,
   },
   appTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#A855F7",
+    fontSize: Fonts.title,
+    fontWeight: Fonts.bold,
+    color: Colors.titleText,
   },
   appSubtitle: {
-    fontSize: 14,
-    color: "#9CA3AF",
+    fontSize: Fonts.subtitle,
+    color: Colors.secondaryText,
     marginTop: 4,
   },
   userCard: {
-    marginTop: 20,
-    backgroundColor: "#1E1B4B",
-    borderRadius: 20,
-    padding: 20,
+    marginTop: Spacing.large,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: Spacing.cardRadius,
+    padding: Spacing.large,
     width: "90%",
     alignItems: "center",
-    shadowColor: "#8B5CF6",
+    shadowColor: Colors.primaryShadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
+    fontSize: Fonts.content,
+    fontWeight: Fonts.semiBold,
+    color: Colors.primaryText,
   },
   userStats: {
-    fontSize: 14,
-    color: "#C084FC",
+    fontSize: Fonts.stats,
+    color: Colors.accentText,
     marginTop: 4,
   },
   primaryButton: {
-    borderRadius: 16,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: "center",
-    shadowColor: "#8B5CF6",
+    shadowColor: Colors.primaryShadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
-    marginBottom: 16,
+    marginBottom: Spacing.medium,
   },
   primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    color: Colors.primaryText,
+    fontSize: Fonts.content,
+    fontWeight: Fonts.bold,
   },
   aiButton: {
-    backgroundColor: "#7C3AED",
-    borderRadius: 16,
+    backgroundColor: Colors.aiButton,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: "center",
-    shadowColor: "#7C3AED",
+    shadowColor: Colors.aiShadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
-    marginBottom: 16,
+    marginBottom: Spacing.medium,
   },
   aiButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    color: Colors.primaryText,
+    fontSize: Fonts.content,
+    fontWeight: Fonts.bold,
   },
   friendButton: {
-    backgroundColor: "#5B21B6",
-    borderRadius: 16,
+    backgroundColor: Colors.friendButton,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#8B5CF6",
-    shadowColor: "#5B21B6",
+    borderColor: Colors.friendButtonBorder,
+    shadowColor: Colors.friendShadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
-    marginBottom: 16,
+    marginBottom: Spacing.medium,
   },
   friendButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    color: Colors.primaryText,
+    fontSize: Fonts.content,
+    fontWeight: Fonts.bold,
   },
   offlineButton: {
-    backgroundColor: "#312E81",
-    borderRadius: 16,
+    backgroundColor: Colors.offlineButton,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#7C3AED",
-    shadowColor: "#312E81",
+    borderColor: Colors.offlineButtonBorder,
+    shadowColor: Colors.offlineShadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
-    marginBottom: 16,
+    marginBottom: Spacing.medium,
   },
   offlineButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    color: Colors.primaryText,
+    fontSize: Fonts.content,
+    fontWeight: Fonts.bold,
   },
 })
 

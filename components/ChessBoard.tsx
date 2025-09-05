@@ -1,3 +1,4 @@
+import Colors from '@/constants/Colors';
 import { useGame } from '@/contexts/GameContext';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -10,7 +11,6 @@ interface ChessBoardProps {
 const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
   const {
     game,
-    gameState,
     selectedSquare,
     legalMoves,
     makeMove,
@@ -37,27 +37,24 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
     const highlights: { [square: string]: string } = {};
 
     if (selectedSquare) {
-      highlights[selectedSquare] = '#8B5CF6';
+      highlights[selectedSquare] = Colors.chessHighlight;
       legalMoves.forEach(move => {
-        highlights[move] = 'rgba(139, 92, 246, 0.4)';
+        highlights[move] = Colors.chessMoveHighlight;
       });
     }
 
     return highlights;
   };
 
-  // Fonction pour personnaliser les pièces
   const customPieceStyle = (piece: string) => {
-    // Pions noirs et autres pièces noires
     if (piece.toLowerCase() === piece) {
       return {
-        color: '#A78BFA', // violet
+        color: Colors.chessPieceBlack,
         fontWeight: 'bold',
       };
     }
-    // Pièces blanches normales (violet clair)
     return {
-      color: '#F3E8FF',
+      color: Colors.chessPieceWhite,
       fontWeight: 'bold',
     };
   };
@@ -70,17 +67,17 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ className = '' }) => {
         highlightedSquares={getHighlightedSquares()}
         boardStyle={styles.board}
         colors={{
-          white: "#808080",
-          black: "#1E1B4B", // case noire foncée
-          lastMoveHighlight: "#A78BFA",
-          checkmateHighlight: "#FF0000",
+          white: Colors.chessWhiteSquare,
+          black: Colors.chessBlackSquare,
+          lastMoveHighlight: Colors.chessHighlight,
+          checkmateHighlight: Colors.chessCheckHighlight,
         }}
         showCoordinates={true}
         showLegalMoves={false}
         pieceStyle={customPieceStyle}
         coordinatesStyle={{
           fontSize: 12,
-          color: '#C4B5FD',
+          color: Colors.chessCoordinates,
           fontWeight: '500'
         }}
       />
@@ -115,7 +112,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    backgroundColor: '#2D3748',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 12,
     padding: 8,
   },
@@ -136,13 +133,13 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   gameOverlayContent: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: Colors.background,
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#8B5CF6',
-    shadowColor: '#8B5CF6',
+    borderColor: Colors.chessHighlight,
+    shadowColor: Colors.chessHighlight,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -151,13 +148,13 @@ const styles = StyleSheet.create({
   gameOverlayTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#8B5CF6',
+    color: Colors.chessHighlight,
     marginBottom: 8,
     textAlign: 'center',
   },
   gameOverlaySubtext: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: Colors.primaryText,
     textAlign: 'center',
     opacity: 0.9,
   }

@@ -1,13 +1,17 @@
-import BottomBar from '@/components/BottomBar';
+"use client"
+
 import ChessBoard from '@/components/ChessBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Bot, ChevronLeft, Crown, Settings, User } from 'lucide-react-native';
+import { ChevronLeft, Crown, Flag, Handshake, RefreshCw, Undo2 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
-// --- Tooltip avec animation ---
+import Colors from '@/constants/Colors';
+import Fonts from '@/constants/Fonts';
+import Spacing from '@/constants/Spacing';
+
 const TooltipIcon = ({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) => {
   const [visible, setVisible] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -29,46 +33,15 @@ const TooltipIcon = ({ label, onPress, children }: { label: string; onPress: () 
   };
 
   return (
-    <View style={{ alignItems: 'center' }}>
+    <View style={{ alignItems: 'center', marginHorizontal: Spacing.medium }}>
       {visible && (
         <Animated.View style={[styles.tooltip, { opacity, transform: [{ translateY }] }]}>
           <Text style={styles.tooltipText}>{label}</Text>
         </Animated.View>
       )}
-      <TouchableOpacity onPress={onPress} onPressIn={showTooltip} onPressOut={hideTooltip} onMouseEnter={showTooltip} onMouseLeave={hideTooltip}>
+      <TouchableOpacity onPress={onPress} onPressIn={showTooltip} onPressOut={hideTooltip} style={styles.iconWrapper}>
         {children}
       </TouchableOpacity>
-    </View>
-  );
-};
-
-// Timer Component
-const Timer = ({ time, isActive }: { time: number; isActive: boolean }) => {
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  return (
-    <View style={[styles.timer, isActive && styles.activeTimer]}>
-      <Text style={[styles.timerText, isActive && styles.activeTimerText]}>{formatTime(time)}</Text>
-    </View>
-  );
-};
-
-// Player Info Component
-const PlayerInfo = ({ name, rating, isOpponent, time, isActive }: { name: string; rating: number; isOpponent?: boolean; time: number; isActive: boolean }) => {
-  return (
-    <View style={[styles.playerInfo, isOpponent && styles.opponentInfo]}>
-      <View style={styles.playerDetails}>
-        <View style={styles.playerIcon}>{isOpponent ? <Bot size={16} color="#FFFFFF" /> : <User size={16} color="#FFFFFF" />}</View>
-        <View>
-          <Text style={styles.playerName}>{name}</Text>
-          <Text style={styles.playerRating}>Rating: {rating}</Text>
-        </View>
-      </View>
-      <Timer time={time} isActive={isActive} />
     </View>
   );
 };
@@ -78,30 +51,13 @@ const GameScreen = () => {
   const router = useRouter();
   const { user } = useAuth();
   const { gameState, loadGame, game, resetGame, undoMove } = useGame();
-  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const [whiteTime, setWhiteTime] = useState(600); // 10 minutes
-  const [blackTime, setBlackTime] = useState(645); // 10:45
-  const [currentTurn, setCurrentTurn] = useState<'w' | 'b'>('w');
 
   const { width, height } = useWindowDimensions();
   const boardSize = Math.min(width * 0.95, height * 0.5, 400);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (game && !game.isGameOver()) {
-        const turn = game.turn();
-        setCurrentTurn(turn);
-        if (turn === 'w') setWhiteTime(prev => Math.max(0, prev - 1));
-        else setBlackTime(prev => Math.max(0, prev - 1));
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [game]);
-
-  React.useEffect(() => {
     const initializeGame = async () => {
       if (id && !gameState) await loadGame(id as string);
       setLoading(false);
@@ -118,87 +74,130 @@ const GameScreen = () => {
 
   const handleOfferDraw = () => Alert.alert('Draw Offer', 'Draw offer sent to opponent');
 
-  const getGameStatus = () => {
-    if (!game) return 'Loading...';
-    if (game.isCheckmate()) return 'Checkmate';
-    if (game.isCheck()) return 'Check';
-    if (game.isDraw()) return 'Draw';
-    if (game.isStalemate()) return 'Stalemate';
-    return 'Ranked Match';
-  };
-
   if (loading || !gameState) {
     return (
       <View style={styles.loadingContainer}>
-        <Crown size={48} color="#8B5CF6" />
+        <Crown size={48} color={Colors.primaryButton[0]} />
         <Text style={styles.loadingText}>Loading game...</Text>
       </View>
     );
   }
-
-  const isWhiteTurn = currentTurn === 'w';
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.push('/lobby')}>
-          <ChevronLeft size={24} color="#FFFFFF" /> {/* <-- icône modifiée */}
+          <ChevronLeft size={24} color={Colors.primaryText} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>{getGameStatus()}</Text>
+        <Text style={styles.headerTitle}>Ranked Match</Text>
 
-        <TouchableOpacity style={styles.settingsButton}>
-          <Settings size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        {/* Timer */}
+        <View style={styles.timerContainer}>
+          <Text style={styles.timerText}>10:00</Text>
+        </View>
       </View>
-
-      {/* Opponent Info */}
-      <PlayerInfo name="GrandMaster99" rating={1847} isOpponent={true} time={blackTime} isActive={!isWhiteTurn} />
 
       {/* Main Content */}
       <View style={styles.mainContent}>
         <View style={[styles.boardContainer, { width: boardSize, height: boardSize }]}>
           <ChessBoard />
         </View>
+
+        {/* Icons below the board */}
+        <View style={styles.iconsContainer}>
+          <TooltipIcon label="Resign" onPress={handleResign}>
+            <Flag size={28} color="#dc2626" />
+          </TooltipIcon>
+
+          <TooltipIcon label="Draw" onPress={handleOfferDraw}>
+            <Handshake size={28} color="#FFFFFF" />
+          </TooltipIcon>
+
+          <TooltipIcon label="Reset" onPress={resetGame}>
+            <RefreshCw size={28} color="#FFFFFF" />
+          </TooltipIcon>
+
+          <TooltipIcon label="Undo" onPress={undoMove}>
+            <Undo2 size={28} color="#FFFFFF" />
+          </TooltipIcon>
+        </View>
       </View>
-
-      {/* Player Info */}
-      <PlayerInfo name="ChessMaster" rating={1654} time={whiteTime} isActive={isWhiteTurn} />
-
-      {/* Bottom Bar */}
-      <BottomBar 
-      onResign={handleResign}
-      onOfferDraw={handleOfferDraw}
-      onReset={resetGame}
-      onUndo={undoMove}/>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a1a2e' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#FFFFFF' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 50 : 30, paddingBottom: 16, backgroundColor: '#16213e' },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#8B5CF6', textAlign: 'center' },
-  settingsButton: { padding: 8 },
-  playerInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#16213e', marginHorizontal: 16, borderRadius: 12, marginVertical: 8 },
-  opponentInfo: { marginTop: 16 },
-  playerDetails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  playerIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#8B5CF6', justifyContent: 'center', alignItems: 'center' },
-  playerName: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  playerRating: { fontSize: 12, color: '#9CA3AF' },
-  timer: { backgroundColor: '#374151', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, minWidth: 80, alignItems: 'center' },
-  activeTimer: { backgroundColor: '#8B5CF6' },
-  timerText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  activeTimerText: { color: '#FFFFFF' },
-  mainContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 20 },
-  boardContainer: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#16213e', borderRadius: 16, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
-  bottomBar: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 30, paddingHorizontal: 20, backgroundColor: '#16213e', borderTopWidth: 1, borderTopColor: '#374151' },
-  tooltip: { position: 'absolute', bottom: 40, backgroundColor: '#374151', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  tooltipText: { color: '#FFFFFF', fontSize: 12, fontWeight: '500' }
+  container: { flex: 1, backgroundColor: Colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+  loadingText: { marginTop: Spacing.medium, fontSize: Fonts.content, color: Colors.primaryText },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.large,
+    paddingTop: Platform.OS === 'ios' ? Spacing.headerTopIOS : Spacing.headerTopAndroid,
+    paddingBottom: Spacing.xmedium,
+    backgroundColor: Colors.cardBackground,
+  },
+  backButton: { padding: Spacing.small },
+  headerTitle: { fontSize: Fonts.title, fontWeight: Fonts.bold, color: Colors.titleText, textAlign: 'center' },
+
+  timerContainer: {
+    backgroundColor: Colors.cardBackground,
+    paddingHorizontal: Spacing.medium,
+    paddingVertical: Spacing.small,
+    borderRadius: Spacing.buttonRadius,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timerText: { color: Colors.primaryText, fontSize: Fonts.content, fontWeight: Fonts.bold },
+
+  mainContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: Spacing.large },
+  boardContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.cardBackground,
+    borderRadius: Spacing.cardRadius,
+    padding: Spacing.medium,
+    shadowColor: Colors.primaryShadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  iconsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: Spacing.xxlarge,
+    gap: Spacing.large,
+  },
+
+  iconWrapper: {
+    backgroundColor: Colors.cardBackground,
+    padding: Spacing.small,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primaryShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+  tooltip: {
+    position: 'absolute',
+    bottom: 40,
+    backgroundColor: Colors.cardBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  tooltipText: { color: Colors.primaryText, fontSize: 12, fontWeight: '500' },
 });
 
 export default GameScreen;
