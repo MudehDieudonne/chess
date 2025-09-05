@@ -1,28 +1,23 @@
-import AssistantPanel from '@/components/AssistantPanel';
 import ChessBoard from '@/components/ChessBoard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
-import { connectSocket, disconnectSocket, getSocket } from '@/services/socket';
-import { Move } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  ArrowLeft,
   Bot,
-  Crown,
-  Bot,
+  ChevronLeft,
   Crown,
   Flag,
   Handshake,
-  History,
-  Lightbulb,
-  X
+  RefreshCw,
+  Settings,
+  Undo2,
+  User
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Modal,
+  Animated,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,500 +25,439 @@ import {
   View
 } from 'react-native';
 
-const SERVER_URL = __DEV__
-  ? 'http://localhost:3005'
-  : 'https://your-production-server.com';
+// Tooltip with animation
+const TooltipIcon = ({
+  label,
+  onPress,
+  children
+}: {
+  label: string;
+  onPress: () => void;
+  children: React.ReactNode;
+}) => {
+  const [visible, setVisible] = useState(false);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(5)).current;
+
+  const showTooltip = () => {
+    setVisible(true);
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+
+  const hideTooltip = () => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true
+      }),
+      Animated.timing(translateY, {
+        toValue: 5,
+        duration: 150,
+        useNativeDriver: true
+      })
+    ]).start(() => setVisible(false));
+  };
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      {visible && (
+        <Animated.View
+          style={[styles.tooltip, { opacity, transform: [{ translateY }] }]}
+        >
+          <Text style={styles.tooltipText}>{label}</Text>
+        </Animated.View>
+      )}
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={showTooltip}
+        onPressOut={hideTooltip}
+        onMouseEnter={showTooltip}
+        onMouseLeave={hideTooltip}
+      >
+        {children}
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// Timer Component
+const Timer = ({ time, isActive }: { time: number; isActive: boolean }) => {
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <View style={[styles.timer, isActive && styles.activeTimer]}>
+      <Text style={[styles.timerText, isActive && styles.activeTimerText]}>
+        {formatTime(time)}
+      </Text>
+    </View>
+  );
+};
+
+// Player Info Component
+const PlayerInfo = ({
+  name,
+  rating,
+  isOpponent,
+  time,
+  isActive
+}: {
+  name: string;
+  rating: number;
+  isOpponent?: boolean;
+  time: number;
+  isActive: boolean;
+}) => {
+  return (
+    <View style={[styles.playerInfo, isOpponent && styles.opponentInfo]}>
+      <View style={styles.playerDetails}>
+        <View style={styles.playerIcon}>
+          {isOpponent ? (
+            <Bot size={16} color="#FFFFFF" />
+          ) : (
+            <User size={16} color="#FFFFFF" />
+          )}
+        </View>
+        <View>
+          <Text style={styles.playerName}>{name}</Text>
+          <Text style={styles.playerRating}>Rating: {rating}</Text>
+        </View>
+      </View>
+      <Timer time={time} isActive={isActive} />
+    </View>
+  );
+};
 
 const GameScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { user, getAccessToken } = useAuth();
-  const { gameState, loadGame, makeMove, addMove } = useGame();
-  const { width, height } = useWindowDimensions();
+  const { user } = useAuth();
+  const {
+    gameState,
+    loadGame,
+    game,
+    resetGame,
+    undoMove,
+    makeMove,
+    timeLeft,
+    isAITurn,
+    isAIThinking,
+    lastAnimatedMove
+  } = useGame();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
     null
   );
-  const [isAIThinking, setIsAIThinking] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const boardSize = Math.min(width * 0.9, height * 0.6, 500);
+  const { width, height } = useWindowDimensions();
+  const boardSize = Math.min(width * 0.95, height * 0.5, 400);
 
-  // Debug: track component lifecycle
   useEffect(() => {
-    console.log('GameScreen mounted - Game ID:', id);
-    return () => {
-      console.log('GameScreen unmounted');
-      disconnectSocket();
-    };
-  }, []);
-
-  // Debug: track gameState changes
-  useEffect(() => {
-    if (gameState) {
-      console.log('GameState updated:', gameState.id);
-    }
-  }, [gameState]);
-
-  // Main initialization effect
-  useEffect(() => {
-    console.log('GameScreen init - User:', user);
-    console.log('GameScreen init - Game ID:', id);
-
-    if (!id || !user?.id) {
-      setError('Game ID or user information is missing.');
-      setLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const init = async () => {
-      try {
-        if (!gameState) {
-          console.log('Loading game...');
+    const initializeGame = async () => {
+      if (id && !gameState) {
+        try {
           await loadGame(id as string);
-        }
-
-        const token = await getAccessToken();
-        if (!token) {
-          throw new Error('Access token not found');
-        }
-
-        console.log('Connecting to socket...');
-        const socket = connectSocket({
-          gameId: id as string,
-          userId: user.id,
-          token: token
-        });
-
-        socket.on('connect', () => {
-          console.log('Socket connected successfully to game:', id);
-          if (isMounted) setLoading(false);
-
-          // Emit joinGame event to backend
-          console.log('Emitting joinGame event');
-          socket.emit('joinGame', id as string);
-        });
-
-        socket.on(
-          'connected',
-          (data: { message: string; clientId: string }) => {
-            console.log('Server connection acknowledged:', data.message);
-          }
-        );
-
-        socket.on('connect_error', err => {
-          console.error('Socket connection error:', err);
-          if (isMounted) {
-            setError('Could not connect to the game server.');
-            setLoading(false);
-          }
-        });
-
-        socket.on('aiMoveMade', (data: { move: any; currentFen?: string }) => {
-          console.log('AI move received:', data);
-          if (!isMounted) return;
-          // Some emissions may not include currentFen; ignore those and rely on gameUpdate
-          if (!data.currentFen) {
-            console.log('AI move received without FEN; waiting for gameUpdate');
-            return;
-          }
-          const aiMove: Move = {
-            from: data.move.from,
-            to: data.move.to,
-            san: data.move.san,
-            fenAfter: data.currentFen,
-            timestamp: Date.now()
-          };
-          addMove(aiMove);
-          setIsAIThinking(false);
-          console.log('AI move processed and board updated');
-        });
-
-        socket.on('aiThinking', () => {
-          console.log('AI started thinking...');
-          if (isMounted) {
-            setIsAIThinking(true);
-          }
-        });
-
-        socket.on('gameUpdate', (payload: any) => {
-          console.log('Game update received:', payload);
-          // After gameUpdate arrives, AI is no longer thinking
-          setIsAIThinking(false);
-        });
-
-        socket.on(
-          'playerJoined',
-          (data: { playerId: string; userId: string }) => {
-            console.log('Player joined game:', data);
-          }
-        );
-
-        socket.on('moveMade', (gameData: any) => {
-          console.log('Move made event received:', gameData);
-        });
-
-        socket.on('gameUpdate', (payload: any) => {
-          console.log('Game update received:', payload);
-        });
-
-        socket.on('gameStarted', (gameData: any) => {
-          console.log('Game started event received:', gameData);
-        });
-      } catch (err) {
-        console.error('GameScreen init error:', err);
-        if (isMounted) {
-          setError('Failed to initialize the game.');
-          setLoading(false);
+        } catch (error) {
+          console.error('Failed to load game:', error);
+          Alert.alert('Error', 'Failed to load game');
         }
       }
+      setLoading(false);
     };
+    initializeGame();
+  }, [id, gameState, loadGame]);
 
-    init();
-
-    return () => {
-      console.log('GameScreen cleanup');
-      isMounted = false;
-    };
-  }, [id, user?.id]);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError('Connection timeout. Please check your network.');
+  const handleResign = () => {
+    Alert.alert('Resign Game', 'Are you sure you want to resign?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Resign',
+        style: 'destructive',
+        onPress: () => {
+          resetGame();
+          router.replace('/lobby');
+        }
       }
-    }, 10000);
-    return () => clearTimeout(timeoutId);
-  }, [loading]);
+    ]);
+  };
 
-  const onPlayerMove = async (move: {
+  const handleOfferDraw = () =>
+    Alert.alert('Draw Offer', 'Draw offer sent to opponent');
+
+  const handleMove = (move: {
     from: string;
     to: string;
     promotion?: string;
   }) => {
-    try {
-      console.log('Player making move:', move);
-      const result = makeMove(move.from, move.to, move.promotion);
+    console.log('Player making move:', move);
+    const moveResult = makeMove(
+      move.from as any,
+      move.to as any,
+      move.promotion
+    );
 
-      if (result) {
-        console.log('Move validated locally:', result);
-        const socket = getSocket();
-
-        if (socket && socket.connected) {
-          console.log('Emitting makeMove to server:', {
-            gameId: id,
-            move: result
-          });
-          socket.emit('makeMove', {
-            gameId: id,
-            dto: result
-          });
-        } else {
-          console.warn('Socket not connected, cannot send move to server');
-        }
-      } else {
-        Alert.alert('Invalid Move', 'That move is not allowed.');
-      }
-    } catch (e) {
-      console.error('Invalid move:', e);
-      Alert.alert('Invalid Move', 'That move is not allowed.');
+    if (moveResult) {
+      console.log('Move validated locally:', moveResult);
+      // The move will be handled by the socket connection in the context
+    } else {
+      console.log('Invalid move attempted');
     }
   };
 
-  const handleResign = () => {
-    Alert.alert('Resign', 'Are you sure you want to resign?', [
-      { text: 'Cancel' },
-      { text: 'Resign', style: 'destructive' }
-    ]);
-  };
-
-  const handleOfferDraw = () => {
-    Alert.alert('Offer Draw', 'Are you sure you want to offer a draw?', [
-      { text: 'Cancel' },
-      { text: 'Yes' }
-    ]);
-  };
-
-  const getCurrentTurn = () => {
-    if (!gameState) return '';
-    if (isAIThinking) return 'AI thinking...';
-    return gameState.turn === 'w' ? 'White' : 'Black';
+  const handleUndo = () => {
+    if (undoMove) {
+      undoMove();
+    } else {
+      Alert.alert('Info', 'Undo feature not available in online games');
+    }
   };
 
   const getGameStatus = () => {
-    if (!gameState) return 'Loading...';
-    if (isAIThinking) return 'AI thinking...';
-    if (gameState.isCheckmate) return 'Checkmate';
-    if (gameState.isDraw) return 'Draw';
-    if (gameState.isCheck) return 'Check';
-    return 'In Progress';
+    if (!game) return 'Loading...';
+    if (game.isCheckmate()) return 'Checkmate';
+    if (game.isCheck()) return 'Check';
+    if (game.isDraw()) return 'Draw';
+    if (game.isStalemate()) return 'Stalemate';
+    if (isAIThinking) return 'AI is thinking...';
+    return gameState?.status === 'active' ? 'Your turn' : 'Waiting';
   };
 
-  const reloadGame = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      if (id) await loadGame(id as string);
-    } catch (err) {
-      setError('Failed to reload game');
-      setLoading(false);
-    }
+  const getTurnIndicator = () => {
+    if (!game) return '';
+    if (game.isGameOver()) return 'Game Over';
+    if (isAIThinking) return 'AI Thinking...';
+    return game.turn() === 'w' ? 'White to move' : 'Black to move';
   };
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Crown size={48} color="#dc2626" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={reloadGame}>
-          <Text style={styles.retryText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   if (loading || !gameState) {
     return (
       <View style={styles.loadingContainer}>
         <Crown size={48} color="#8B5CF6" />
         <Text style={styles.loadingText}>Loading game...</Text>
-        {/* Debug aid */}
-        <Text style={{ marginTop: 8, color: '#666' }}>
-          Waiting for server...
-        </Text>
       </View>
     );
   }
 
-  const isWhiteTurn = currentTurn === 'w';
+  const isPlayerTurn =
+    gameState?.playerColor === 'white'
+      ? game?.turn() === 'w'
+      : game?.turn() === 'b';
+  const isWhiteTurn = game?.turn() === 'w';
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.push('/lobby')}
         >
-          <ArrowLeft size={24} color="#FFFFFF" />
+          <ChevronLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <View style={styles.opponentInfo}>
-            <Bot size={16} color="#2D5016" />
-            <Text style={styles.headerTitle}>vs {gameState.opponent}</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>
-            {getCurrentTurn()}'s turn • {getGameStatus()}
-          </Text>
+
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>{getGameStatus()}</Text>
+          <Text style={styles.turnIndicator}>{getTurnIndicator()}</Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setActiveTab('history')}
-          >
-            <History size={22} color="#2D5016" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setActiveTab('assistant')}
-          >
-            <Lightbulb size={22} color="#2D5016" />
-          </TouchableOpacity>
-        </View>
+
+        <TouchableOpacity style={styles.settingsButton}>
+          <Settings size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
-      <View
-        style={[styles.boardContainer, { width: boardSize, height: boardSize }]}
-      >
-        <ChessBoard onMove={onPlayerMove} />
-      </View>
+      {/* Opponent Info */}
+      <PlayerInfo
+        name="AI Opponent"
+        rating={1847}
+        isOpponent={true}
+        time={timeLeft.black}
+        isActive={!isPlayerTurn && !isAIThinking}
+      />
 
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={[styles.controlButton, styles.resignButton]}
-          onPress={handleResign}
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        <View
+          style={[
+            styles.boardContainer,
+            { width: boardSize, height: boardSize }
+          ]}
         >
-          <Flag size={20} color="#fff" />
-          <Text style={styles.controlText}>Resign</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.controlButton, styles.drawButton]}
-          onPress={handleOfferDraw}
-        >
-          <Handshake size={20} color="#228B22" />
-          <Text style={styles.drawText}>Draw</Text>
-        </TouchableOpacity>
+          <ChessBoard onMove={handleMove} />
+          {isAIThinking && (
+            <View style={styles.aiThinkingOverlay}>
+              <Text style={styles.aiThinkingText}>AI is thinking...</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      <Modal
-        visible={activeTab !== null}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setActiveTab(null)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { maxHeight: height * 0.7 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {activeTab === 'history' ? 'Move History' : 'AI Assistant'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setActiveTab(null)}
-                style={styles.closeButton}
-              >
-                <X size={24} color="#2D5016" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalBody}>
-              {activeTab === 'history' && (
-                <ScrollView style={styles.historyList}>
-                  {gameState.moves.length === 0 ? (
-                    <Text style={styles.noMovesText}>No moves yet</Text>
-                  ) : (
-                    gameState.moves.map((move, index) => (
-                      <View key={index} style={styles.moveItem}>
-                        <Text style={styles.moveNumber}>
-                          {Math.floor(index / 2) + 1}.
-                        </Text>
-                        <Text style={styles.moveNotation}>{move.san}</Text>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              )}
-              {activeTab === 'assistant' && <AssistantPanel />}
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Player Info */}
+      <PlayerInfo
+        name={user?.displayName || 'Player'}
+        rating={1654}
+        time={timeLeft.white}
+        isActive={isPlayerTurn && !isAIThinking}
+      />
+
+      {/* Bottom Bar */}
+      <View style={styles.bottomBar}>
+        <TooltipIcon label="Resign" onPress={handleResign}>
+          <Flag size={28} color="#dc2626" />
+        </TooltipIcon>
+        <TooltipIcon label="Draw" onPress={handleOfferDraw}>
+          <Handshake size={28} color="#FFFFFF" />
+        </TooltipIcon>
+        <TooltipIcon label="Reset" onPress={() => resetGame()}>
+          <RefreshCw size={28} color="#FFFFFF" />
+        </TooltipIcon>
+        <TooltipIcon label="Undo" onPress={handleUndo}>
+          <Undo2 size={28} color="#FFFFFF" />
+        </TooltipIcon>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, backgroundColor: '#1a1a2e' },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1a1a2e'
   },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 20
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#dc2626',
-    textAlign: 'center',
-    marginBottom: 20,
-    marginTop: 10
-  },
-  retryButton: {
-    backgroundColor: '#228B22',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8
-  },
-  retryText: { color: 'white', fontWeight: '600' },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#FFFFFF' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8'
+    paddingBottom: 16,
+    backgroundColor: '#16213e'
+  },
+  headerTitleContainer: {
+    alignItems: 'center'
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8B5CF6',
+    textAlign: 'center'
+  },
+  turnIndicator: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 4
   },
   backButton: { padding: 8 },
-  headerCenter: { flex: 1, alignItems: 'center', marginHorizontal: 12 },
-  opponentInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: '#2D5016' },
-  headerSubtitle: { fontSize: 12, color: '#666', marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: 12 },
-  headerIcon: { padding: 8 },
-  boardContainer: {
-    alignSelf: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    backgroundColor: 'white',
+  settingsButton: { padding: 8 },
+  playerInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#16213e',
+    marginHorizontal: 16,
     borderRadius: 12,
+    marginVertical: 8
+  },
+  opponentInfo: { marginTop: 16 },
+  playerDetails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  playerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#8B5CF6',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  playerName: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  playerRating: { fontSize: 12, color: '#9CA3AF' },
+  timer: {
+    backgroundColor: '#374151',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 80,
+    alignItems: 'center'
+  },
+  activeTimer: { backgroundColor: '#8B5CF6' },
+  timerText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  activeTimerText: { color: '#FFFFFF' },
+  mainContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20
+  },
+  boardContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#16213e',
+    borderRadius: 16,
+    padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8
   },
+  aiThinkingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16
+  },
+  aiThinkingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
   bottomBar: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    padding: 16
-  },
-  controlButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-around',
+    paddingVertical: 30,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
-    justifyContent: 'center'
+    backgroundColor: '#16213e',
+    borderTopWidth: 1,
+    borderTopColor: '#374151'
   },
-  resignButton: { backgroundColor: '#dc2626' },
-  drawButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#228B22'
+  tooltip: {
+    position: 'absolute',
+    bottom: 40,
+    backgroundColor: '#374151',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6
   },
-  controlText: { color: 'white', fontWeight: '600', fontSize: 14 },
-  drawText: { color: '#228B22', fontWeight: '600', fontSize: 14 },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end'
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e8e8e8'
-  },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#2D5016' },
-  closeButton: { padding: 4 },
-  modalBody: { padding: 20 },
-  historyList: { maxHeight: 300 },
-  moveItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
-  },
-  moveNumber: { width: 30, color: '#666', fontSize: 14 },
-  moveNotation: {
-    fontFamily: 'monospace',
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2D5016'
-  },
-  noMovesText: { textAlign: 'center', color: '#666', padding: 20 }
+  tooltipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500'
+  }
 });
 
 export default GameScreen;

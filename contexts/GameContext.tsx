@@ -500,18 +500,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   };
 
   const selectSquare = (square: Square | null) => setSelectedSquare(square);
-  const selectSquare = (square: Square | null) => setSelectedSquare(square);
-
-  const resetGame = () => {
-    setGame(new Chess());
-    setGameState(null);
-    setLastMove(null);
-    setSelectedSquare(null);
-    setAssistantHint(null);
-    setTimeLeft({ white: 600, black: 600 });
-    setIsAITurn(false);
-    setIsAIThinking(false);
-  };
 
   const loadGame = async (gameId: string): Promise<boolean> => {
     setLoading(true);
