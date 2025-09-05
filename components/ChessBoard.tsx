@@ -138,7 +138,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
         }}
         coordinatesStyle={{
           fontSize: 12,
-          color: '#A0AEC0',
+          color: '#C4B5FD',
           fontWeight: '500'
         }}
       />

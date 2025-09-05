@@ -1,5 +1,4 @@
 'use client';
-
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUser } from '@/contexts/userContext';
@@ -17,19 +16,16 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-
 const Lobby = () => {
   const router = useRouter();
   const { user } = useAuth();
   const { userStats, loading: userStatsLoading } = useUser();
   const { createGame, loading } = useGame();
-
   const handlePlayVsAI = async () => {
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to play vs AI');
       return;
     }
-
     try {
       const gameId = await createGame(true);
       router.push(`/game/${gameId}`);
@@ -38,7 +34,6 @@ const Lobby = () => {
       Alert.alert('Error', 'Failed to create AI game. Please try again.');
     }
   };
-
   const handleCreateInvite = async () => {
     const inviteToken = 'invite_' + Date.now();
     const inviteUrl = `https://yourapp.com/invite/${inviteToken}`;
@@ -50,18 +45,15 @@ const Lobby = () => {
       Alert.alert('Error', 'Failed to copy invite link.');
     }
   };
-
   const handlePlayOffline = () => {
     router.push('/offline');
   };
-
   // Get display name - prioritize backend username, then auth context, then fallback
   const displayName =
     userStats?.username ||
     user?.displayName ||
     user?.email?.split('@')[0] ||
     'ChessPlayer';
-
   return (
     <View style={styles.background}>
       {/* Header */}
@@ -74,13 +66,12 @@ const Lobby = () => {
             <ActivityIndicator color="#C084FC" size="small" />
           ) : (
             <Text style={styles.userStats}>
-              🏆 {userStats?.overview?.rating ?? 800} 🔥{' '}
-              {userStats?.overview?.streak ?? 0} streak
+              🏆 {userStats?.overview.rating || 800} 🔥{' '}
+              {userStats?.overview.streak || 0} streak
             </Text>
           )}
         </View>
       </View>
-
       {/* Main Content */}
       <ScrollView style={styles.container}>
         <View style={styles.content}>
@@ -95,7 +86,6 @@ const Lobby = () => {
               <Text style={styles.primaryButtonText}>⚡ Play Online</Text>
             </LinearGradient>
           </TouchableOpacity>
-
           {/* Play vs AI */}
           <TouchableOpacity
             style={styles.aiButton}
@@ -108,7 +98,6 @@ const Lobby = () => {
               <Text style={styles.aiButtonText}>🤖 Play vs AI</Text>
             )}
           </TouchableOpacity>
-
           {/* Play vs Friend */}
           <TouchableOpacity
             style={styles.friendButton}
@@ -116,7 +105,6 @@ const Lobby = () => {
           >
             <Text style={styles.friendButtonText}>👥 Play vs Friend</Text>
           </TouchableOpacity>
-
           {/* Play Offline */}
           <TouchableOpacity
             style={styles.offlineButton}
@@ -126,13 +114,11 @@ const Lobby = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
       {/* Sidebar */}
       <Sidebar currentPage="lobby" />
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   background: {
     flex: 1,
@@ -251,5 +237,4 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   }
 });
-
 export default Lobby;
