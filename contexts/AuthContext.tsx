@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Alert, Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, AuthResponse } from '@/lib/auth-api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 
 // Create a universal storage solution that works on web and native
 const universalStorage = {
@@ -34,7 +34,7 @@ const universalStorage = {
 interface User {
   id: string;
   email: string;
-  displayName?: string;
+  username?: string;
 }
 
 interface AuthContextType {
@@ -44,6 +44,7 @@ interface AuthContextType {
   verifyOTP: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,15 +84,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const storeAuthData = async (data: AuthResponse) => {
     try {
+      const rawUser = data.user;
+      const normalizedUser: User = {
+        id: rawUser.id || rawUser.sub,
+        email: rawUser.email,
+        username: rawUser.username || undefined
+      };
+
       await Promise.all([
         universalStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.access_token),
         universalStorage.setItem(
           STORAGE_KEYS.REFRESH_TOKEN,
           data.refresh_token
         ),
-        universalStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user))
+        universalStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify(normalizedUser)
+        )
       ]);
-      setUser(data.user);
+
+      setUser(normalizedUser);
     } catch (error) {
       console.error('Failed to store auth data:', error);
       throw new Error('Failed to store authentication data');
@@ -112,7 +124,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Send OTP to email
+  const getAccessToken = async (): Promise<string | null> => {
+    return await universalStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+  };
+
   const sendOTP = async (email: string): Promise<boolean> => {
     try {
       const response = await authApi.sendOtp({ email });
@@ -131,11 +146,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Verify OTP and log in
   const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
     try {
       const response = await authApi.verifyOtp({ email, otp });
-
+      
       if (response.error) {
         Alert.alert('Error', response.error);
         return false;
@@ -161,7 +175,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Logout user
   const logout = async (): Promise<void> => {
     try {
       const refreshToken = await universalStorage.getItem(
@@ -204,7 +217,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     sendOTP,
     verifyOTP,
     logout,
-    refreshToken
+    refreshToken,
+    getAccessToken
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

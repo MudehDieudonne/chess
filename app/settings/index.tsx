@@ -42,12 +42,13 @@ export default function SettingsPage() {
         </TouchableOpacity>
       </View>
 
-      {/* Profile Navigation */}
+      {/* Profile Card */}
       <TouchableOpacity
+        style={styles.card}
         onPress={() => router.push("/settings/profile")}
-        style={styles.profileButton}
       >
-        <Text style={styles.profileButtonText}>Go to Profile</Text>
+        <Text style={styles.cardTitle}>Profile</Text>
+        <Text style={styles.cardContent}>Go to your profile</Text>
       </TouchableOpacity>
     </View>
   );
@@ -95,18 +96,6 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: Fonts.content,
     fontWeight: Fonts.medium,
-    color: Colors.primaryText,
-  },
-  profileButton: {
-    marginTop: "auto",
-    padding: Spacing.medium,
-    borderRadius: Spacing.buttonRadius,
-    backgroundColor: Colors.primaryButton[0],
-    alignItems: "center",
-  },
-  profileButtonText: {
-    fontSize: Fonts.content,
-    fontWeight: Fonts.semiBold,
     color: Colors.primaryText,
   },
 });

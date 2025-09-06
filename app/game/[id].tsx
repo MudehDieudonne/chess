@@ -158,20 +158,30 @@ const GameScreen = () => {
     makeMove,
     timeLeft,
     isAITurn,
-    isAIThinking
+    isAIThinking,
+    lastAnimatedMove,
+    lastMove,
+    addMove
   } = useGame();
 
+  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [gameResult, setGameResult] = useState<{ title: string; message: string } | null>(null);
+  const [gameResult, setGameResult] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
   const [isResigning, setIsResigning] = useState(false);
   const [isOfferingDraw, setIsOfferingDraw] = useState(false);
 
   const { width, height } = useWindowDimensions();
   const boardSize = Math.min(width * 0.95, height * 0.5, 400);
 
+  // Debug logging function
   const addDebugLog = (message: string) => {
     const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
     const logMessage = `[${timestamp}] ${message}`;
@@ -191,9 +201,7 @@ const GameScreen = () => {
           await loadGame(id as string);
           addDebugLog('Game loaded successfully');
         } catch (error) {
-          const errorMsg = `Failed to load game: ${
-            error instanceof Error ? error.message : String(error)
-          }`;
+          const errorMsg = `Failed to load game: ${error instanceof Error ? error.message : String(error)}`;
           addDebugLog(errorMsg);
           Alert.alert('Error', 'Failed to load game');
         }
@@ -203,6 +211,7 @@ const GameScreen = () => {
     initializeGame();
   }, [id, gameState, loadGame]);
 
+  // Handle game end
   useEffect(() => {
     if (game?.isGameOver() && !showResultModal) {
       let title = 'Game Over';
@@ -230,6 +239,11 @@ const GameScreen = () => {
     setIsResigning(true);
 
     try {
+      // In a real implementation, you would emit a socket event to the backend
+      // For now, we'll simulate the resignation
+      addDebugLog('Emitting resign event to backend...');
+
+      // Simulate backend processing
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setGameResult({
@@ -237,7 +251,9 @@ const GameScreen = () => {
         message: 'You have resigned from the game'
       });
       setShowResultModal(true);
+      addDebugLog('Game resigned successfully');
     } catch (error) {
+      addDebugLog(`Resignation failed: ${error}`);
       Alert.alert('Error', 'Failed to resign from game');
     } finally {
       setIsResigning(false);
@@ -249,37 +265,73 @@ const GameScreen = () => {
     setIsOfferingDraw(true);
 
     try {
+      // Emit draw offer to backend
+      addDebugLog('Emitting draw offer to backend...');
+
+      // Simulate backend processing
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       Alert.alert('Draw Offered', 'Draw offer has been sent to your opponent');
+      addDebugLog('Draw offer sent successfully');
     } catch (error) {
+      addDebugLog(`Draw offer failed: ${error}`);
       Alert.alert('Error', 'Failed to send draw offer');
     } finally {
       setIsOfferingDraw(false);
     }
   };
 
-  const handleMove = (move: { from: string; to: string; promotion?: string }) => {
-    makeMove(move.from as any, move.to as any, move.promotion);
+  const handleMove = (move: {
+    from: string;
+    to: string;
+    promotion?: string;
+  }) => {
+    addDebugLog(`Player making move: ${JSON.stringify(move)}`);
+
+    const moveResult = makeMove(
+      move.from as any,
+      move.to as any,
+      move.promotion
+    );
+
+    if (moveResult) {
+      addDebugLog(`Move validated locally: ${JSON.stringify(moveResult)}`);
+      addDebugLog('Emitting makeMove to server...');
+    } else {
+      addDebugLog('Invalid move attempted - rejected by local validation');
+    }
   };
 
   const handleUndo = () => {
-    if (undoMove) undoMove();
-    else Alert.alert('Info', 'Undo feature not available in online games');
+    addDebugLog('Undo button pressed');
+    if (undoMove) {
+      undoMove();
+      addDebugLog('Undo move executed');
+    } else {
+      addDebugLog('Undo feature not available');
+      Alert.alert('Info', 'Undo feature not available in online games');
+    }
   };
 
   const handleReset = () => {
+    addDebugLog('Reset button pressed');
     resetGame();
     setShowResultModal(false);
     setGameResult(null);
+    addDebugLog('Game reset');
   };
 
-  const handleHome = () => router.replace('/lobby');
+  const handleHome = () => {
+    addDebugLog('Home button pressed');
+    router.replace('/lobby');
+  };
 
   const handleRestart = () => {
+    addDebugLog('Restart button pressed');
     resetGame();
     setShowResultModal(false);
     setGameResult(null);
+    addDebugLog('Game restarted');
   };
 
   const getGameStatus = () => {
@@ -289,7 +341,14 @@ const GameScreen = () => {
     if (game.isDraw()) return 'Draw';
     if (game.isStalemate()) return 'Stalemate';
     if (isAIThinking) return 'AI is thinking...';
-    return 'Ranked';
+    return gameState?.status === 'active' ? 'Your turn' : 'Waiting';
+  };
+
+  const getTurnIndicator = () => {
+    if (!game) return '';
+    if (game.isGameOver()) return 'Game Over';
+    if (isAIThinking) return 'AI Thinking...';
+    return game.turn() === 'w' ? 'White to move' : 'Black to move';
   };
 
   if (loading || !gameState) {
@@ -381,8 +440,37 @@ const GameScreen = () => {
         </View>
       </View>
 
+      {/* Player Info */}
+      <PlayerInfo
+        name={user?.displayName || 'Player'}
+        rating={1654}
+        time={timeLeft.white}
+        isActive={isPlayerTurn && !isAIThinking}
+      />
+
+      {/* Bottom Bar */}
+      <View style={styles.bottomBar}>
+        <TooltipIcon label="Resign" onPress={handleResign}>
+          <Flag size={28} color="#dc2626" />
+        </TooltipIcon>
+        <TooltipIcon label="Draw" onPress={handleOfferDraw}>
+          <Handshake size={28} color="#FFFFFF" />
+        </TooltipIcon>
+        <TooltipIcon label="Reset" onPress={handleReset}>
+          <RefreshCw size={28} color="#FFFFFF" />
+        </TooltipIcon>
+        <TooltipIcon label="Undo" onPress={handleUndo}>
+          <Undo2 size={28} color="#FFFFFF" />
+        </TooltipIcon>
+      </View>
+
       {/* Result Modal */}
-      <Modal visible={showResultModal} transparent animationType="fade" onRequestClose={() => setShowResultModal(false)}>
+      <Modal
+        visible={showResultModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowResultModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{gameResult?.title}</Text>
@@ -479,7 +567,7 @@ const styles = StyleSheet.create({
     marginVertical: 8
   },
   opponentInfo: { marginTop: 16 },
-  playerDetails: { flexDirection: 'row', alignItems: 'center' },
+  playerDetails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   playerIcon: {
     width: 32,
     height: 32,

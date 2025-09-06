@@ -1,7 +1,10 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
 import React, { useState } from 'react';
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -47,14 +50,43 @@ const ChessPiece: React.FC<ChessPieceProps> = ({ piece, isSelected, onPress }) =
   );
 };
 
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 const CreateProfileScreen = () => {
   const [selectedPiece, setSelectedPiece] = useState<
     'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn'
   >('king');
   const [username, setUsername] = useState('');
+  const {user, getAccessToken} = useAuth()
   const navigation = useNavigation();
 
   const pieces: ChessPieceProps['piece'][] = ['king', 'queen', 'rook'];
+
+  const handleUpdateProfile = async () => {
+    console.log('In here')
+    try {
+      const userId = user?.id;
+      const token = await getAccessToken();
+
+        await axios.patch(
+        `${API_URL}/analytics/${userId}/profile`,
+        {
+          username,
+          avatarUrl: selectedPiece, // storing piece as avatar (could be image URL later)
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      Alert.alert('Success', 'Profile updated!');
+      navigation.goBack(); // return to previous screen
+    } catch (err: any) {
+      console.error(err.response?.data || err.message);
+      Alert.alert('Error', 'Could not update profile.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -112,12 +144,13 @@ const CreateProfileScreen = () => {
             />
           </View>
 
-          {/* Create Button */}
-          <TouchableOpacity style={styles.createButton}>
-            <Text style={styles.createButtonText}>Edit Profile</Text>
-          </TouchableOpacity>
-        </View>
+           {/* Create Button */}
+        <TouchableOpacity style={styles.createButton} onPress={handleUpdateProfile}>
+          <Text style={styles.createButtonText}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
       </ScrollView>
+       
     </SafeAreaView>
   );
 };
