@@ -1,4 +1,6 @@
 import ChessBoard from '@/components/ChessBoard';
+import Colors from '@/constants/Colors';
+import Spacing from '@/constants/Spacing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -156,30 +158,20 @@ const GameScreen = () => {
     makeMove,
     timeLeft,
     isAITurn,
-    isAIThinking,
-    lastAnimatedMove,
-    lastMove,
-    addMove
+    isAIThinking
   } = useGame();
 
-  const [activeTab, setActiveTab] = useState<'history' | 'assistant' | null>(
-    null
-  );
   const [loading, setLoading] = useState(true);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [gameResult, setGameResult] = useState<{
-    title: string;
-    message: string;
-  } | null>(null);
+  const [gameResult, setGameResult] = useState<{ title: string; message: string } | null>(null);
   const [isResigning, setIsResigning] = useState(false);
   const [isOfferingDraw, setIsOfferingDraw] = useState(false);
 
   const { width, height } = useWindowDimensions();
   const boardSize = Math.min(width * 0.95, height * 0.5, 400);
 
-  // Debug logging function
   const addDebugLog = (message: string) => {
     const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
     const logMessage = `[${timestamp}] ${message}`;
@@ -199,7 +191,9 @@ const GameScreen = () => {
           await loadGame(id as string);
           addDebugLog('Game loaded successfully');
         } catch (error) {
-          const errorMsg = `Failed to load game: ${error instanceof Error ? error.message : String(error)}`;
+          const errorMsg = `Failed to load game: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
           addDebugLog(errorMsg);
           Alert.alert('Error', 'Failed to load game');
         }
@@ -209,7 +203,6 @@ const GameScreen = () => {
     initializeGame();
   }, [id, gameState, loadGame]);
 
-  // Handle game end
   useEffect(() => {
     if (game?.isGameOver() && !showResultModal) {
       let title = 'Game Over';
@@ -237,11 +230,6 @@ const GameScreen = () => {
     setIsResigning(true);
 
     try {
-      // In a real implementation, you would emit a socket event to the backend
-      // For now, we'll simulate the resignation
-      addDebugLog('Emitting resign event to backend...');
-
-      // Simulate backend processing
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setGameResult({
@@ -249,9 +237,7 @@ const GameScreen = () => {
         message: 'You have resigned from the game'
       });
       setShowResultModal(true);
-      addDebugLog('Game resigned successfully');
     } catch (error) {
-      addDebugLog(`Resignation failed: ${error}`);
       Alert.alert('Error', 'Failed to resign from game');
     } finally {
       setIsResigning(false);
@@ -263,73 +249,37 @@ const GameScreen = () => {
     setIsOfferingDraw(true);
 
     try {
-      // Emit draw offer to backend
-      addDebugLog('Emitting draw offer to backend...');
-
-      // Simulate backend processing
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       Alert.alert('Draw Offered', 'Draw offer has been sent to your opponent');
-      addDebugLog('Draw offer sent successfully');
     } catch (error) {
-      addDebugLog(`Draw offer failed: ${error}`);
       Alert.alert('Error', 'Failed to send draw offer');
     } finally {
       setIsOfferingDraw(false);
     }
   };
 
-  const handleMove = (move: {
-    from: string;
-    to: string;
-    promotion?: string;
-  }) => {
-    addDebugLog(`Player making move: ${JSON.stringify(move)}`);
-
-    const moveResult = makeMove(
-      move.from as any,
-      move.to as any,
-      move.promotion
-    );
-
-    if (moveResult) {
-      addDebugLog(`Move validated locally: ${JSON.stringify(moveResult)}`);
-      addDebugLog('Emitting makeMove to server...');
-    } else {
-      addDebugLog('Invalid move attempted - rejected by local validation');
-    }
+  const handleMove = (move: { from: string; to: string; promotion?: string }) => {
+    makeMove(move.from as any, move.to as any, move.promotion);
   };
 
   const handleUndo = () => {
-    addDebugLog('Undo button pressed');
-    if (undoMove) {
-      undoMove();
-      addDebugLog('Undo move executed');
-    } else {
-      addDebugLog('Undo feature not available');
-      Alert.alert('Info', 'Undo feature not available in online games');
-    }
+    if (undoMove) undoMove();
+    else Alert.alert('Info', 'Undo feature not available in online games');
   };
 
   const handleReset = () => {
-    addDebugLog('Reset button pressed');
     resetGame();
     setShowResultModal(false);
     setGameResult(null);
-    addDebugLog('Game reset');
   };
 
-  const handleHome = () => {
-    addDebugLog('Home button pressed');
-    router.replace('/lobby');
-  };
+  const handleHome = () => router.replace('/lobby');
 
   const handleRestart = () => {
-    addDebugLog('Restart button pressed');
     resetGame();
     setShowResultModal(false);
     setGameResult(null);
-    addDebugLog('Game restarted');
   };
 
   const getGameStatus = () => {
@@ -339,14 +289,7 @@ const GameScreen = () => {
     if (game.isDraw()) return 'Draw';
     if (game.isStalemate()) return 'Stalemate';
     if (isAIThinking) return 'AI is thinking...';
-    return gameState?.status === 'active' ? 'Your turn' : 'Waiting';
-  };
-
-  const getTurnIndicator = () => {
-    if (!game) return '';
-    if (game.isGameOver()) return 'Game Over';
-    if (isAIThinking) return 'AI Thinking...';
-    return game.turn() === 'w' ? 'White to move' : 'Black to move';
+    return 'Ranked';
   };
 
   if (loading || !gameState) {
@@ -367,23 +310,23 @@ const GameScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push('/lobby')}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/lobby')}>
           <ChevronLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{getGameStatus()}</Text>
-          <Text style={styles.turnIndicator}>{getTurnIndicator()}</Text>
-        </View>
+  <Text
+    style={[
+      styles.headerTitle,
+      getGameStatus() === 'Ranked' && { fontFamily: 'YourCustomFont-Bold', fontSize: 35 }
+    ]}
+  >
+    {getGameStatus()}
+  </Text>
+</View>
 
-        <TouchableOpacity
-          style={styles.debugButton}
-          onPress={() => setShowDebug(!showDebug)}
-          onLongPress={() => setDebugLogs([])}
-        >
+
+        <TouchableOpacity style={styles.debugButton} onPress={() => setShowDebug(!showDebug)}>
           <Text style={styles.debugButtonText}>📋</Text>
         </TouchableOpacity>
       </View>
@@ -393,37 +336,18 @@ const GameScreen = () => {
         <View style={styles.debugPanel}>
           <ScrollView style={styles.debugScrollView}>
             {debugLogs.map((log, index) => (
-              <Text key={index} style={styles.debugLogText}>
-                {log}
-              </Text>
+              <Text key={index} style={styles.debugLogText}>{log}</Text>
             ))}
           </ScrollView>
-          <TouchableOpacity
-            style={styles.closeDebugButton}
-            onPress={() => setShowDebug(false)}
-          >
+          <TouchableOpacity style={styles.closeDebugButton} onPress={() => setShowDebug(false)}>
             <Text style={styles.closeDebugText}>Close</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Opponent Info */}
-      <PlayerInfo
-        name="AI Opponent"
-        rating={1847}
-        isOpponent={true}
-        time={timeLeft.black}
-        isActive={!isPlayerTurn && !isAIThinking}
-      />
-
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <View
-          style={[
-            styles.boardContainer,
-            { width: boardSize, height: boardSize }
-          ]}
-        >
+        <View style={[styles.boardContainer, { width: boardSize, height: boardSize }]}>
           <ChessBoard onMove={handleMove} />
           {isAIThinking && (
             <View style={styles.aiThinkingOverlay}>
@@ -434,73 +358,43 @@ const GameScreen = () => {
 
         {/* Icons below the board */}
         <View style={styles.iconsContainer}>
-          <TooltipIcon label="Resign" onPress={handleResign}>
-            <Flag size={28} color="#dc2626" />
-          </TooltipIcon>
-
-          <TooltipIcon label="Draw" onPress={handleOfferDraw}>
-            <Handshake size={28} color="#FFFFFF" />
-          </TooltipIcon>
-
-          <TooltipIcon label="Reset" onPress={resetGame}>
-            <RefreshCw size={28} color="#FFFFFF" />
-          </TooltipIcon>
-
-          <TooltipIcon label="Undo" onPress={undoMove}>
-            <Undo2 size={28} color="#FFFFFF" />
-          </TooltipIcon>
+          <View style={styles.iconWrapper}>
+            <TooltipIcon label="Resign" onPress={handleResign}>
+              <Flag size={28} color="#dc2626" />
+            </TooltipIcon>
+          </View>
+          <View style={styles.iconWrapper}>
+            <TooltipIcon label="Draw" onPress={handleOfferDraw}>
+              <Handshake size={28} color="#FFFFFF" />
+            </TooltipIcon>
+          </View>
+          <View style={styles.iconWrapper}>
+            <TooltipIcon label="Reset" onPress={handleReset}>
+              <RefreshCw size={28} color="#FFFFFF" />
+            </TooltipIcon>
+          </View>
+          <View style={styles.iconWrapper}>
+            <TooltipIcon label="Undo" onPress={handleUndo}>
+              <Undo2 size={28} color="#FFFFFF" />
+            </TooltipIcon>
+          </View>
         </View>
       </View>
 
-      {/* Player Info */}
-      <PlayerInfo
-        name={user?.displayName || 'Player'}
-        rating={1654}
-        time={timeLeft.white}
-        isActive={isPlayerTurn && !isAIThinking}
-      />
-
-      {/* Bottom Bar */}
-      <View style={styles.bottomBar}>
-        <TooltipIcon label="Resign" onPress={handleResign}>
-          <Flag size={28} color="#dc2626" />
-        </TooltipIcon>
-        <TooltipIcon label="Draw" onPress={handleOfferDraw}>
-          <Handshake size={28} color="#FFFFFF" />
-        </TooltipIcon>
-        <TooltipIcon label="Reset" onPress={handleReset}>
-          <RefreshCw size={28} color="#FFFFFF" />
-        </TooltipIcon>
-        <TooltipIcon label="Undo" onPress={handleUndo}>
-          <Undo2 size={28} color="#FFFFFF" />
-        </TooltipIcon>
-      </View>
-
       {/* Result Modal */}
-      <Modal
-        visible={showResultModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowResultModal(false)}
-      >
+      <Modal visible={showResultModal} transparent animationType="fade" onRequestClose={() => setShowResultModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{gameResult?.title}</Text>
             <Text style={styles.modalMessage}>{gameResult?.message}</Text>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.restartButton]}
-                onPress={handleRestart}
-              >
+              <TouchableOpacity style={[styles.modalButton, styles.restartButton]} onPress={handleRestart}>
                 <RefreshCw size={20} color="#FFFFFF" />
                 <Text style={styles.modalButtonText}>Play Again</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.modalButton, styles.homeButton]}
-                onPress={handleHome}
-              >
+              <TouchableOpacity style={[styles.modalButton, styles.homeButton]} onPress={handleHome}>
                 <Home size={20} color="#FFFFFF" />
                 <Text style={styles.modalButtonText}>Main Menu</Text>
               </TouchableOpacity>
@@ -515,7 +409,6 @@ const GameScreen = () => {
           <Text style={styles.loadingOverlayText}>Resigning...</Text>
         </View>
       )}
-
       {isOfferingDraw && (
         <View style={styles.loadingOverlay}>
           <Text style={styles.loadingOverlayText}>Offering draw...</Text>
@@ -526,14 +419,14 @@ const GameScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a1a2e' },
+  container: { flex: 1, backgroundColor: Colors.background },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e'
+    backgroundColor: Colors.background
   },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#FFFFFF' },
+  loadingText: { marginTop: 16, fontSize: 16, color: Colors.primaryText },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,19 +434,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingBottom: 16,
-    backgroundColor: '#16213e'
+    backgroundColor: Colors.sidebarBackground
   },
   headerTitleContainer: { alignItems: 'center' },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#8B5CF6',
-    textAlign: 'center'
-  },
-  turnIndicator: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: Colors.titleText, textAlign: 'center' },
   backButton: { padding: 8 },
   debugButton: { padding: 8 },
-  debugButtonText: { fontSize: 20, color: '#FFFFFF' },
+  debugButtonText: { fontSize: 20, color: Colors.primaryText },
   debugPanel: {
     position: 'absolute',
     top: 100,
@@ -573,36 +460,37 @@ const styles = StyleSheet.create({
     marginBottom: 2
   },
   closeDebugButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: Colors.primaryButton[0],
     padding: 8,
     borderRadius: 4,
     alignItems: 'center',
     marginTop: 8
   },
-  closeDebugText: { color: '#FFFFFF', fontWeight: 'bold' },
+  closeDebugText: { color: Colors.primaryText, fontWeight: 'bold' },
   playerInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#16213e',
+    backgroundColor: Colors.cardBackground,
     marginHorizontal: 16,
     borderRadius: 12,
     marginVertical: 8
   },
   opponentInfo: { marginTop: 16 },
-  playerDetails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  playerDetails: { flexDirection: 'row', alignItems: 'center' },
   playerIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: Colors.primaryButton[0],
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginRight: 12
   },
-  playerName: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  playerRating: { fontSize: 12, color: '#9CA3AF' },
+  playerName: { fontSize: 16, fontWeight: '600', color: Colors.primaryText },
+  playerRating: { fontSize: 12, color: Colors.secondaryText },
   timer: {
     backgroundColor: '#374151',
     paddingHorizontal: 16,
@@ -611,9 +499,9 @@ const styles = StyleSheet.create({
     minWidth: 80,
     alignItems: 'center'
   },
-  activeTimer: { backgroundColor: '#8B5CF6' },
-  timerText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  activeTimerText: { color: '#FFFFFF' },
+  activeTimer: { backgroundColor: Colors.primaryButton[0] },
+  timerText: { fontSize: 16, fontWeight: '600', color: Colors.primaryText },
+  activeTimerText: { color: Colors.primaryText },
   mainContent: {
     flex: 1,
     justifyContent: 'center',
@@ -623,7 +511,7 @@ const styles = StyleSheet.create({
   boardContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#16213e',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 16,
     padding: 12,
     shadowColor: '#000',
@@ -645,16 +533,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     zIndex: 10
   },
-  aiThinkingText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  bottomBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    backgroundColor: '#16213e',
-    borderTopWidth: 1,
-    borderTopColor: '#374151'
-  },
+  aiThinkingText: { color: Colors.primaryText, fontSize: 16, fontWeight: 'bold' },
   tooltip: {
     position: 'absolute',
     bottom: 40,
@@ -663,9 +542,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6
   },
-  tooltipText: { color: '#FFFFFF', fontSize: 12, fontWeight: '500' },
-
-  // Modal Styles
+  tooltipText: { color: Colors.primaryText, fontSize: 12, fontWeight: '500' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -673,54 +550,21 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   modalContent: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: Colors.background,
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     width: '80%',
     borderWidth: 2,
-    borderColor: '#8B5CF6'
+    borderColor: Colors.primaryButton[0]
   },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textAlign: 'center'
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    marginBottom: 24,
-    textAlign: 'center'
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    gap: 16
-  },
-  modalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
-    gap: 8
-  },
-  restartButton: {
-    backgroundColor: '#8B5CF6'
-  },
-  homeButton: {
-    backgroundColor: '#374151'
-  },
-  modalButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600'
-  },
-
-  // Loading Overlay
+  modalTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.primaryText, marginBottom: 8, textAlign: 'center' },
+  modalMessage: { fontSize: 16, color: Colors.secondaryText, marginBottom: 24, textAlign: 'center' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-around', width: '100%' },
+  modalButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, flex: 1, marginHorizontal: 4 },
+  restartButton: { backgroundColor: Colors.primaryButton[0] },
+  homeButton: { backgroundColor: '#374151' },
+  modalButtonText: { color: Colors.primaryText, fontWeight: '600' },
   loadingOverlay: {
     position: 'absolute',
     top: 0,
@@ -732,11 +576,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 20
   },
-  loadingOverlayText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold'
-  }
+  loadingOverlayText: { color: Colors.primaryText, fontSize: 18, fontWeight: 'bold' },
+  iconsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 50,
+    paddingVertical:12,
+    backgroundColor: Colors.background,
+    borderRadius: 16
+  },
+  iconWrapper: {
+  backgroundColor: Colors.background,
+  borderRadius: 16,
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.2)',
+  width: 45,
+  height: 45,
+  shadowColor: '#ffffff',
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0.3,
+  shadowRadius: 4,
+  elevation: 4,
+}
+
 });
 
 export default GameScreen;

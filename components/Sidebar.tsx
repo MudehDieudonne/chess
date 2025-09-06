@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "expo-router"
 import { History, Home, Plus, Settings, Trophy } from "lucide-react-native"
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { StyleSheet, TouchableOpacity, View } from "react-native"
 
 interface SidebarProps {
   currentPage?: string
@@ -21,6 +21,7 @@ const Sidebar = ({ currentPage = "lobby" }: SidebarProps) => {
   ]
 
   const handleNavigation = (item: (typeof menuItems)[0]) => {
+    console.log("Navigate to:", item.route);
     if (item.id === "newgame") {
       // logique spéciale pour créer une partie
       return
@@ -55,7 +56,7 @@ const Sidebar = ({ currentPage = "lobby" }: SidebarProps) => {
                   <Icon size={28} color="#FFFFFF" />
                 </View>
               </View>
-              <Text style={styles.newGameLabel}>{item.label}</Text>
+              {/* <Text style={styles.newGameLabel}>{item.label}</Text> */}
             </TouchableOpacity>
           )
         }
@@ -67,7 +68,7 @@ const Sidebar = ({ currentPage = "lobby" }: SidebarProps) => {
             onPress={() => handleNavigation(item)}
           >
             <Icon size={20} color={active ? "#FFFFFF" : "#9CA3AF"} />
-            <Text style={[styles.menuLabel, active && styles.activeMenuLabel]}>{item.label}</Text>
+            {/* <Text style={[styles.menuLabel, active && styles.activeMenuLabel]}>{item.label}</Text> */}
           </TouchableOpacity>
         )
       })}
