@@ -1,8 +1,8 @@
 'use client';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUser } from '@/contexts/userContext';
 import { useGame } from '@/contexts/GameContext';
+import { useUser } from '@/contexts/userContext';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,7 @@ const Lobby = () => {
   const { user } = useAuth();
   const { userStats, loading: userStatsLoading } = useUser();
   const { createGame, loading } = useGame();
+  
   const handlePlayVsAI = async () => {
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to play vs AI');
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   primaryButton: {
-    borderRadius: 16,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: 'center',
     shadowColor: '#8B5CF6',

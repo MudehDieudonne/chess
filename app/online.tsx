@@ -1,17 +1,24 @@
+"use client"
+
 import { useAuth } from "@/contexts/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+
+// Constants
+import Colors from "@/constants/Colors";
+import Fonts from "@/constants/Fonts";
+import Spacing from "@/constants/Spacing";
 
 const Online = () => {
   const router = useRouter();
@@ -119,7 +126,7 @@ const Online = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={24} color="#FFFFFF"/>
+          <ChevronLeft size={24} color={Colors.primaryText}/>
         </TouchableOpacity>
         <Text style={styles.title}>Chessizen</Text>
         <View style={styles.placeholder} />
@@ -132,9 +139,7 @@ const Online = () => {
           <Animated.View
             style={[
               styles.rotatingContainer,
-              {
-                transform: [{ rotate: spin }],
-              },
+              { transform: [{ rotate: spin }] },
             ]}
           >
             {chessPieces.map((item, index) => {
@@ -148,10 +153,7 @@ const Online = () => {
                   key={index}
                   style={[
                     styles.chessPiece,
-                    {
-                      left: x + 120,
-                      top: y + 120,
-                    },
+                    { left: x + 120, top: y + 120 },
                   ]}
                 >
                   <Text style={styles.chessPieceText}>{item.piece}</Text>
@@ -164,13 +166,11 @@ const Online = () => {
           <Animated.View
             style={[
               styles.centralCircle,
-              {
-                transform: [{ scale: pulseAnim }],
-              },
+              { transform: [{ scale: pulseAnim }] },
             ]}
           >
             <LinearGradient
-              colors={["#8B5CF6", "#7C3AED", "#6D28D9"]}
+              colors={Colors.primaryButton}
               style={styles.gradient}
             >
               <Text style={styles.centralIcon}>♟</Text>
@@ -202,7 +202,7 @@ const Online = () => {
         {!isSearching ? (
           <TouchableOpacity onPress={startSearch}>
             <LinearGradient
-              colors={["#8B5CF6", "#7C3AED"]}
+              colors={Colors.primaryButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.actionButton}
@@ -215,12 +215,6 @@ const Online = () => {
             <Text style={styles.cancelButtonText}>Cancel Search</Text>
           </TouchableOpacity>
         )}
-
-        {/* User Info */}
-        <View style={styles.userInfo}>
-          {/* <Text style={styles.userRating}>Your Rating: 1654</Text> */}
-          {/* <Text style={styles.searchInfo}>Searching for players: 1500-1800</Text> */}
-        </View>
       </View>
     </View>
   );
@@ -229,15 +223,15 @@ const Online = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F0F23",
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === "ios" ? Spacing.headerTopIOS : Spacing.headerTopAndroid,
+    paddingHorizontal: Spacing.large,
+    paddingBottom: Spacing.large,
   },
   backButton: {
     width: 40,
@@ -245,14 +239,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  backButtonText: {
-    fontSize: 24,
-    color: "#FFFFFF",
-  },
   title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#A855F7",
+    fontSize: Fonts.title,
+    fontWeight: Fonts.bold,
+    color: Colors.titleText,
   },
   placeholder: {
     width: 40,
@@ -261,14 +251,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.large,
   },
   chessCircle: {
     width: 300,
     height: 300,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 60,
+    marginBottom: Spacing.xlarge,
   },
   rotatingContainer: {
     width: 300,
@@ -283,8 +273,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chessPieceText: {
-    fontSize: 28,
-    color: "#9CA3AF",
+    fontSize: Fonts.icon,
+    color: Colors.secondaryText,
     opacity: 0.6,
   },
   centralCircle: {
@@ -294,7 +284,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     position: "absolute",
-    shadowColor: "#8B5CF6",
+    shadowColor: Colors.primaryShadow,
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 10,
@@ -307,86 +297,73 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   centralIcon: {
-    fontSize: 42,
-    color: "#FFFFFF",
+    fontSize: Fonts.iconLarge,
+    color: Colors.primaryText,
   },
   statusContainer: {
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: Spacing.xlarge,
   },
   statusTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 8,
+    fontSize: Fonts.title,
+    fontWeight: Fonts.bold,
+    color: Colors.primaryText,
+    marginBottom: Spacing.small,
   },
   statusSubtitle: {
-    fontSize: 16,
-    color: "#A78BFA",
+    fontSize: Fonts.content,
+    color: Colors.accentText,
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: Spacing.medium,
   },
   timer: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#C084FC",
+    fontSize: Fonts.subtitle,
+    fontWeight: Fonts.bold,
+    color: Colors.accentText,
   },
   progressContainer: {
     width: "80%",
-    marginBottom: 40,
+    marginBottom: Spacing.xlarge,
   },
   progressBar: {
     height: 6,
-    backgroundColor: "#1F1F37",
+    backgroundColor: Colors.cardBackground,
     borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#8B5CF6",
+    backgroundColor: Colors.primaryButton[0],
     width: "30%",
   },
   actionButton: {
-    borderRadius: 14,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 16,
     paddingHorizontal: 60,
-    shadowColor: "#8B5CF6",
+    shadowColor: Colors.primaryShadow,
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
-    marginBottom: 20,
+    marginBottom: Spacing.medium,
   },
   actionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    color: Colors.primaryText,
+    fontSize: Fonts.content,
+    fontWeight: Fonts.bold,
   },
   cancelButton: {
-    backgroundColor: "#312E81",
-    borderRadius: 14,
+    backgroundColor: Colors.offlineButton,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 16,
     paddingHorizontal: 60,
     borderWidth: 2,
-    borderColor: "#8B5CF6",
-    marginBottom: 40,
+    borderColor: Colors.primaryButton[0],
+    marginBottom: Spacing.xlarge,
   },
   cancelButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  userInfo: {
-    alignItems: "center",
-  },
-  userRating: {
-    fontSize: 16,
-    color: "#A78BFA",
-    marginBottom: 4,
-    fontWeight: "600",
-  },
-  searchInfo: {
-    fontSize: 14,
-    color: "#9CA3AF",
+    color: Colors.primaryText,
+    fontSize: Fonts.content,
+    fontWeight: Fonts.bold,
   },
 });
 
