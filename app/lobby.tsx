@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   primaryButton: {
-    borderRadius: Spacing.buttonRadius,
+    // borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: 'center',
     shadowColor: '#8B5CF6',
