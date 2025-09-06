@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Alert, Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, AuthResponse } from '@/lib/auth-api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 
 // Create a universal storage solution that works on web and native
 const universalStorage = {
@@ -34,7 +34,7 @@ const universalStorage = {
 interface User {
   id: string;
   email: string;
-  displayName?: string;
+  username?: string;
 }
 
 interface AuthContextType {
@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const normalizedUser: User = {
         id: rawUser.id || rawUser.sub,
         email: rawUser.email,
-        displayName: rawUser.displayName || rawUser.name || undefined
+        username: rawUser.username || undefined
       };
 
       await Promise.all([
@@ -149,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
     try {
       const response = await authApi.verifyOtp({ email, otp });
-
+      
       if (response.error) {
         Alert.alert('Error', response.error);
         return false;

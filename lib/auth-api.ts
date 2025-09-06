@@ -19,7 +19,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
-    displayName?: string;
+    username?: string;
   };
 }
 
