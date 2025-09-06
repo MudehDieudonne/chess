@@ -51,7 +51,9 @@ const ChessPiece: React.FC<ChessPieceProps> = ({ piece, isSelected, onPress }) =
   );
 };
 
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 const CreateProfileScreen = () => {
   const [selectedPiece, setSelectedPiece] = useState<'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn'>('king');
   const [username, setUsername] = useState('');
@@ -112,7 +114,6 @@ const CreateProfileScreen = () => {
           <Text style={styles.title}>Create Your Profile</Text>
           <Text style={styles.subtitle}>Choose your chess identity</Text>
 
-      </View>
           {/* Avatar Selection */}
           <Text style={styles.sectionTitle}>Choose Your Avatar</Text>
           <View style={styles.piecesGrid}>
@@ -138,12 +139,14 @@ const CreateProfileScreen = () => {
               onChangeText={setUsername}
             />
           </View>
-{/* Create Button */}
+
+           {/* Create Button */}
         <TouchableOpacity style={styles.createButton} onPress={handleUpdateProfile}>
           <Text style={styles.createButtonText}>Edit Profile</Text>
         </TouchableOpacity>
-        </View>
+      </View>
       </ScrollView>
+       
     </SafeAreaView>
   );
 };
