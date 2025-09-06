@@ -1,5 +1,6 @@
 'use client';
 import Sidebar from '@/components/Sidebar';
+import Spacing from '@/constants/Spacing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 import { useUser } from '@/contexts/userContext';
