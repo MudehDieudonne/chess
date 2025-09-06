@@ -1,6 +1,5 @@
 'use client';
 import Sidebar from '@/components/Sidebar';
-import Spacing from '@/constants/Spacing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 import { useUser } from '@/contexts/userContext';
@@ -17,7 +16,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-
 
 const Lobby = () => {
   const router = useRouter();
@@ -38,6 +36,7 @@ const Lobby = () => {
       Alert.alert('Error', 'Failed to create AI game. Please try again.');
     }
   };
+
   const handleCreateInvite = async () => {
     const inviteToken = 'invite_' + Date.now();
     const inviteUrl = `https://yourapp.com/invite/${inviteToken}`;
@@ -50,15 +49,18 @@ const Lobby = () => {
       console.error(error)
     }
   };
+
   const handlePlayOffline = () => {
     router.push('/offline');
   };
+
   // Get display name - prioritize backend username, then auth context, then fallback
   const displayName =
     userStats?.username ||
     user?.username ||
     user?.email?.split('@')[0] ||
     'ChessPlayer';
+
   return (
     <View style={styles.background}>
       {/* Header */}
@@ -77,53 +79,83 @@ const Lobby = () => {
           )}
         </View>
       </View>
+
       {/* Main Content */}
       <ScrollView style={styles.container}>
         <View style={styles.content}>
           {/* Play Online */}
-          <TouchableOpacity onPress={() => router.push('/online')}>
+          <TouchableOpacity
+            onPress={() => router.push('/online')}
+            style={styles.onlineButtonWrapper}
+          >
             <LinearGradient
               colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.primaryButton}
+              style={styles.onlineButton}
             >
-              <Text style={styles.primaryButtonText}>⚡ Play Online</Text>
+              <Text style={styles.onlineButtonText}>⚡ Play Online</Text>
             </LinearGradient>
           </TouchableOpacity>
+
           {/* Play vs AI */}
           <TouchableOpacity
-            style={styles.aiButton}
+            style={styles.onlineButtonWrapper}
             onPress={handlePlayVsAI}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.aiButtonText}>🤖 Play vs AI</Text>
-            )}
+            <LinearGradient
+              colors={['#7C3AED', '#6D28D9', '#5B21B6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.onlineButton}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.onlineButtonText}>🤖 Play vs AI</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
+
           {/* Play vs Friend */}
           <TouchableOpacity
-            style={styles.friendButton}
+            style={styles.onlineButtonWrapper}
             onPress={handleCreateInvite}
           >
-            <Text style={styles.friendButtonText}>👥 Play vs Friend</Text>
+            <LinearGradient
+              colors={['#5B21B6', '#6D28D9', '#7C3AED']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.onlineButton}
+            >
+              <Text style={styles.onlineButtonText}>👥 Play vs Friend</Text>
+            </LinearGradient>
           </TouchableOpacity>
+
           {/* Play Offline */}
           <TouchableOpacity
-            style={styles.offlineButton}
+            style={styles.onlineButtonWrapper}
             onPress={handlePlayOffline}
           >
-            <Text style={styles.offlineButtonText}>🎮 Play Offline</Text>
+            <LinearGradient
+              colors={['#312E81', '#3B32A1', '#5B21B6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.onlineButton}
+            >
+              <Text style={styles.onlineButtonText}>🎮 Play Offline</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
       {/* Sidebar */}
       <Sidebar currentPage="lobby" />
     </View>
   );
 };
+
 const styles = StyleSheet.create({
   background: {
     flex: 1,
@@ -174,72 +206,24 @@ const styles = StyleSheet.create({
     color: '#C084FC',
     marginTop: 4
   },
-  primaryButton: {
-    borderRadius: Spacing.buttonRadius,
-    paddingVertical: 18,
-    alignItems: 'center',
+  onlineButtonWrapper: {
+    borderRadius: 16,
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  aiButton: {
-    backgroundColor: '#7C3AED',
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6
   },
-  aiButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  friendButton: {
-    backgroundColor: '#5B21B6',
-    borderRadius: 16,
+  onlineButton: {
     paddingVertical: 18,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#8B5CF6',
-    shadowColor: '#5B21B6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6
-  },
-  friendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  offlineButton: {
-    backgroundColor: '#312E81',
     borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#7C3AED',
-    shadowColor: '#312E81',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6
   },
-  offlineButtonText: {
+  onlineButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '700'
-  }
+    fontWeight: '700',
+  },
 });
+
 export default Lobby;
