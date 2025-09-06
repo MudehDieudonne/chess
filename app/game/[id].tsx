@@ -8,24 +8,23 @@ import {
   Crown,
   Flag,
   Handshake,
+  Home,
   RefreshCw,
-  Settings,
   Undo2,
-  User,
-  Home
+  User
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View,
-  Modal,
-  ScrollView
+  View
 } from 'react-native';
 
 // Tooltip with animation
@@ -74,7 +73,7 @@ const TooltipIcon = ({
   };
 
   return (
-    <View style={{ alignItems: 'center' }}>
+    <View style={{ alignItems: 'center', marginHorizontal: Spacing.medium }}>
       {visible && (
         <Animated.View
           style={[styles.tooltip, { opacity, transform: [{ translateY }] }]}
@@ -353,7 +352,7 @@ const GameScreen = () => {
   if (loading || !gameState) {
     return (
       <View style={styles.loadingContainer}>
-        <Crown size={48} color="#8B5CF6" />
+        <Crown size={48} color={Colors.primaryButton[0]} />
         <Text style={styles.loadingText}>Loading game...</Text>
       </View>
     );
@@ -431,6 +430,25 @@ const GameScreen = () => {
               <Text style={styles.aiThinkingText}>AI is thinking...</Text>
             </View>
           )}
+        </View>
+
+        {/* Icons below the board */}
+        <View style={styles.iconsContainer}>
+          <TooltipIcon label="Resign" onPress={handleResign}>
+            <Flag size={28} color="#dc2626" />
+          </TooltipIcon>
+
+          <TooltipIcon label="Draw" onPress={handleOfferDraw}>
+            <Handshake size={28} color="#FFFFFF" />
+          </TooltipIcon>
+
+          <TooltipIcon label="Reset" onPress={resetGame}>
+            <RefreshCw size={28} color="#FFFFFF" />
+          </TooltipIcon>
+
+          <TooltipIcon label="Undo" onPress={undoMove}>
+            <Undo2 size={28} color="#FFFFFF" />
+          </TooltipIcon>
         </View>
       </View>
 

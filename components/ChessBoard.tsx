@@ -1,8 +1,9 @@
+import Colors from '@/constants/Colors';
 import { useGame } from '@/contexts/GameContext';
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Animated, Easing } from 'react-native';
-import Chessboard from 'react-native-chessboard';
 import { Chess } from 'chess.js';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import Chessboard from 'react-native-chessboard';
 
 interface ChessBoardProps {
   onMove: (move: { from: string; to: string; promotion?: string }) => void;
@@ -12,7 +13,6 @@ interface ChessBoardProps {
 const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
   const {
     game,
-    gameState,
     selectedSquare,
     legalMoves,
     selectSquare,
@@ -94,7 +94,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
 
       // Legal moves highlight (semi-transparent purple)
       legalMoves.forEach(move => {
-        highlights[move] = 'rgba(139, 92, 246, 0.4)';
+        highlights[move] = Colors.chessMoveHighlight;
       });
     }
     return highlights;
@@ -138,7 +138,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ onMove, className = '' }) => {
         }}
         coordinatesStyle={{
           fontSize: 12,
-          color: '#C4B5FD',
+          color: Colors.chessCoordinates,
           fontWeight: '500'
         }}
       />
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    backgroundColor: '#2D3748',
+    backgroundColor: Colors.cardBackground,
     borderRadius: 12,
     padding: 8
   },
@@ -260,13 +260,13 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   gameOverlayContent: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: Colors.background,
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#8B5CF6',
-    shadowColor: '#8B5CF6',
+    borderColor: Colors.chessHighlight,
+    shadowColor: Colors.chessHighlight,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -275,13 +275,13 @@ const styles = StyleSheet.create({
   gameOverlayTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#8B5CF6',
+    color: Colors.chessHighlight,
     marginBottom: 8,
     textAlign: 'center'
   },
   gameOverlaySubtext: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: Colors.primaryText,
     textAlign: 'center',
     opacity: 0.9
   },

@@ -23,6 +23,7 @@ const Lobby = () => {
   const { user } = useAuth();
   const { userStats, loading: userStatsLoading } = useUser();
   const { createGame, loading } = useGame();
+  
   const handlePlayVsAI = async () => {
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to play vs AI');
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   primaryButton: {
-    borderRadius: 16,
+    borderRadius: Spacing.buttonRadius,
     paddingVertical: 18,
     alignItems: 'center',
     shadowColor: '#8B5CF6',
