@@ -21,6 +21,7 @@ const Lobby = () => {
   const { user } = useAuth();
   const { userStats, loading: userStatsLoading } = useUser();
   const { createGame, loading } = useGame();
+  
   const handlePlayVsAI = async () => {
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to play vs AI');

@@ -8,24 +8,23 @@ import {
   Crown,
   Flag,
   Handshake,
+  Home,
   RefreshCw,
-  Settings,
   Undo2,
-  User,
-  Home
+  User
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View,
-  Modal,
-  ScrollView
+  View
 } from 'react-native';
 
 // Tooltip with animation
