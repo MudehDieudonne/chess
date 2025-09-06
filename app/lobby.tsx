@@ -16,6 +16,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+
+
 const Lobby = () => {
   const router = useRouter();
   const { user } = useAuth();
@@ -44,6 +46,7 @@ const Lobby = () => {
       router.push(`/invite/${inviteToken}`);
     } catch (error) {
       Alert.alert('Error', 'Failed to copy invite link.');
+      console.error(error)
     }
   };
   const handlePlayOffline = () => {
@@ -52,7 +55,7 @@ const Lobby = () => {
   // Get display name - prioritize backend username, then auth context, then fallback
   const displayName =
     userStats?.username ||
-    user?.displayName ||
+    user?.username ||
     user?.email?.split('@')[0] ||
     'ChessPlayer';
   return (
